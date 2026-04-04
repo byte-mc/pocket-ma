@@ -12,20 +12,29 @@ Evacuate if: <condition>
 
 Respond in the same language the user wrote in.`;
 
-export async function triage(symptom: string): Promise<string> {
+export async function triage(
+  symptom: string,
+  imagePath?: string,
+): Promise<string> {
   const ctx = getContext();
+  const userContent = imagePath
+    ? [
+        { type: 'image_url', image_url: { url: `file://${imagePath}` } },
+        { type: 'text', text: symptom || 'What do you see? Provide triage.' },
+      ]
+    : symptom;
+
   const result = await ctx.completion({
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: symptom },
+      { role: 'user', content: userContent as any },
     ],
     n_predict: 512,
     temperature: 0.1,
     stop: ['\n\n\n', '<end_of_turn>'],
   });
-  // Strip <thinking>...</thinking> blocks if present
+
   let text = result.text.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
-  // Take from the last occurrence of "Severity:" — the actual structured output
   const idx = text.lastIndexOf('Severity:');
   return (idx >= 0 ? text.slice(idx) : text).trim();
 }
