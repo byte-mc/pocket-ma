@@ -13,8 +13,10 @@
 | Prize | Track | Amount | Why we qualify |
 |---|---|---|---|
 | Health & Sciences | Impact Track | $10,000 | Core use case |
-| Cactus | Special Technology | $10,000 | Local-first mobile app with model routing |
+| Cactus | Special Technology | $10,000 | Local-first mobile app with model routing ⚠️ see note |
 | Main Track | Overall | up to $50,000 | Awarded independently |
+
+> **⚠️ Cactus TODO:** As of 2026-04-04, `cactus-react-native` is at v1.10.4 on npm but `Cactus-Compute/gemma-4-E2B-it` requires SDK v1.12 (not yet released). The registry also only has an int4 zip (no int8), which the current SDK requires both. We are currently using `llama.rn` instead. **Revisit when cactus-react-native ≥ 1.12 ships on npm** — the swap is small (replace llama.rn download+init with CactusLM, same triage logic). Check: https://www.npmjs.com/package/cactus-react-native
 
 ---
 
@@ -63,8 +65,10 @@ Title card:
 - [ ] Cover image (Media Gallery)
 
 ### Build Milestones
-- [ ] Android app scaffold
-- [ ] On-device Gemma 4 E2B integration via Cactus
+- [x] Android app scaffold
+- [x] On-device Gemma 4 E2B integration (llama.rn, Q4_K_M GGUF)
+- [x] Triage system prompt with structured output + auto-language detection
+- [ ] TODO: swap llama.rn → Cactus once cactus-react-native ≥ 1.12 is on npm
 - [ ] Multimodal input (image + voice)
 - [ ] Model routing (fast first-pass → deep reasoning)
 - [ ] Chinese language output (text + TTS)
