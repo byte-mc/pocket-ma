@@ -40,9 +40,8 @@ export default function HomeScreen() {
     setState('loading');
     setResult('');
     try {
-      await triage(symptom.trim(), token => {
-        setResult(prev => prev + token);
-      });
+      const response = await triage(symptom.trim());
+      setResult(response);
     } catch (e) {
       setError(String(e));
     } finally {
