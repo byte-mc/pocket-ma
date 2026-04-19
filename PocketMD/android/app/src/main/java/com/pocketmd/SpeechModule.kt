@@ -18,17 +18,25 @@ class SpeechModule(private val ctx: ReactApplicationContext) :
 
     private var recognizer: SpeechRecognizer? = null
 
+    private fun destroyRecognizer() {
+        recognizer?.stopListening()
+        recognizer?.destroy()
+        recognizer = null
+    }
+
     @ReactMethod
     fun startListening(locale: String, promise: Promise) {
         UiThreadUtil.runOnUiThread {
-            recognizer?.destroy()
+            destroyRecognizer()
             recognizer = SpeechRecognizer.createSpeechRecognizer(ctx).apply {
                 setRecognitionListener(object : RecognitionListener {
                     override fun onResults(results: Bundle) {
                         val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        destroyRecognizer()
                         promise.resolve(matches?.firstOrNull() ?: "")
                     }
                     override fun onError(error: Int) {
+                        destroyRecognizer()
                         promise.reject("STT_ERROR", "Recognition error: $error")
                     }
                     override fun onReadyForSpeech(params: Bundle?) {}
@@ -50,7 +58,7 @@ class SpeechModule(private val ctx: ReactApplicationContext) :
 
     @ReactMethod
     fun stopListening() {
-        UiThreadUtil.runOnUiThread { recognizer?.stopListening() }
+        UiThreadUtil.runOnUiThread { destroyRecognizer() }
     }
 
     // Required for RN event emitter compatibility
