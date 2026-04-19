@@ -236,7 +236,7 @@ export default function HomeScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Pocket MD</Text>
+        <Text style={styles.headerTitle}>Pocket MA</Text>
         {hasMessages && (
           <TouchableOpacity onPress={handleNew} style={styles.newButton}>
             <Text style={styles.newButtonText}>New</Text>
