@@ -1,4 +1,4 @@
-# Pocket MD — Project Journey
+# Pocket MA — Project Journey
 
 A chronological record of design decisions, technical challenges, and lessons learned. Written as proof of work for the Gemma 4 Good Hackathon.
 
@@ -132,10 +132,140 @@ Lesson: `runOnUiThread` is an Activity method — `SpeechRecognizer` must be cre
 
 ---
 
-## Open threads (as of 2026-04-18)
+---
+
+## 2026-04-22 — Conversational Chat UI & Multi-turn Triage Flow
+
+### From single-shot to multi-turn conversation
+
+The original UI was a single text input → single triage output. Replaced it with a full chat interface: scrollable message list, user/AI bubbles, and a conversation history that persists across turns within a session.
+
+The model now follows a structured flow:
+1. User describes symptom (text, voice, or photo)
+2. Model asks up to 2 follow-up questions
+3. Model delivers structured triage assessment
+
+An "Assess Now" button lets the user skip remaining questions and force triage immediately — useful when the situation is urgent or the user is on voice.
+
+### Conversation history management
+
+Each turn passes the full prior conversation to the model as a `messages` array. `buildHistory()` maps the internal `ChatMessage[]` state into `ConversationMessage[]` format for the llama.rn API.
+
+Truncated responses (model hit token limit mid-thinking) are detected and the user message is rolled back so history stays clean for the next attempt.
+
+### Thinking token format — updated
+
+Gemma 4 changed its thinking wrapper from `<thinking>...</thinking>` to `<|channel>thought\n...<channel|>`. Updated the stripping logic to use `lastIndexOf('<channel|>')` to find the boundary between reasoning and actual output.
+
+---
+
+## 2026-04-23 — Rename to Pocket MA & UI Polish
+
+### Rename: Pocket MD → Pocket MA (Medical Assistant)
+
+"MD" could be mistaken for a medical degree claim. Renamed to "Pocket MA" (Medical Assistant) across all layers:
+- `package.json` name, `yarn.lock` workspace
+- `MainActivity.kt` component name
+- `strings.xml` app display name
+- App icons regenerated at all densities (mdpi → xxxhdpi)
+
+### Full UI redesign
+
+Replaced the plain white placeholder UI with a polished design system:
+
+**Design tokens** — a single `C` object holds the full color palette: teal primary (`#0E7C6E`), background, text hierarchy, bubble colors, severity colors. All styles reference `C.*` — no hardcoded hex strings scattered through `StyleSheet`.
+
+**Brand icon** — a custom `BrandIcon` component renders a bold "P" with an orange "+" tucked at the lower-right, composited from `Text` elements (no SVG dependency needed on Android).
+
+**Splash / loading screens** — the download and initialization states now show the brand logo, app name, and a `ProgressBar` component (animated fill, percentage readout) instead of a bare `ActivityIndicator`.
+
+**Chat bubbles** — user messages in teal, AI messages in white with a subtle shadow. AI turns include a small avatar dot with the brand icon.
+
+**Triage card** — triage results render in a dedicated `TriageCard` component with a colored left border and severity badge (green / amber / orange / red based on Low / Medium / High / Emergency).
+
+**Thinking indicator** — replaced spinner with an animated `ThinkingDots` component ("Thinking", "Thinking.", "Thinking..", "Thinking...") cycling at 400ms.
+
+**Empty state** — three quick-start chips ("Twisted ankle", "Chest pain", "Rash on skin") let users tap to send a symptom instantly, reducing friction for first-time use.
+
+---
+
+## 2026-04-24 — Inference Performance Measurement & Optimisation
+
+### Adding timing instrumentation
+
+`llama.rn`'s completion result includes a `timings` object with: `prompt_n`, `prompt_ms`, `prompt_per_second`, `predicted_n`, `predicted_ms`, `predicted_per_second`. Added a `[PERF]` log line after every inference:
+
+```
+[PERF] wall=38245ms | prefill: 144 tok @ 49.4 t/s (2914ms) | decode: 358 tok @ 10.2 t/s (35020ms)
+```
+
+Monitored live via `adb logcat | grep "\[PERF\]"`.
+
+### Baseline: Gemma 4 thinking tokens are very expensive
+
+First measurement on Pixel 6 (Tensor G1):
+
+| Metric | Value |
+|---|---|
+| Wall time | 38s |
+| Tokens generated | 358 |
+| Decode speed | 10.2 t/s |
+
+Of the 358 tokens, ~270 were the model's internal thinking block — generated in full, then stripped from the output before display. The user waited 35 seconds for content they never saw.
+
+### Fix 1: Disable thinking entirely
+
+`llama.rn`'s completion API exposes `enable_thinking: boolean`. Setting `enable_thinking: false` tells the model to skip the reasoning phase and go directly to output.
+
+Result: the thinking block disappeared entirely. Token count dropped from 358 to 24 on the same prompt.
+
+### Fix 2: Cap n_predict per turn
+
+Old value: `n_predict: 600` (effectively unlimited for these responses).
+
+Gathering turns need ~15–35 tokens (a short question). Triage format peaks at ~100 tokens. Set a single cap of `n_predict: 150` — tight enough to skip wasted decode, loose enough that triage never truncates.
+
+An earlier attempt at phase-specific caps (`n_predict: 80` for gathering, `200` for triage) failed because the phase heuristic (`history.length >= 4`) was wrong — triage can fire after just one exchange. Reverted to a single 150 cap.
+
+### Results after optimisation
+
+**Pixel 6 (Tensor G1):**
+
+| Turn | Wall time | Decode tok | Decode t/s |
+|---|---|---|---|
+| Gathering Q1 | 4–5s | 12–31 | ~12 t/s |
+| Gathering Q2 | 2–3s | 9–18 | ~12 t/s |
+| Triage | 6–8s | 64–86 | ~11 t/s |
+
+**Pixel 7 (Tensor G2):**
+
+| Turn | Wall time | Decode tok | Decode t/s |
+|---|---|---|---|
+| Gathering Q1 | 4s | 16–17 | ~13 t/s |
+| Gathering Q2 | 1.6–2s | 9–12 | ~12 t/s |
+| Triage | 7–9s | 69–86 | ~11 t/s |
+
+**Overall speedup: ~7x** (38s → 5–9s per turn). Total conversation (2 questions + triage) completes in 15–20s on both devices.
+
+Key finding: decode speed (~12 t/s) is nearly identical on Pixel 6 and Pixel 7 — both are memory-bandwidth bound during token generation. The Pixel 7's Tensor G2 is faster at prefill (~60 t/s vs ~47 t/s) but that only accounts for 2–3s of total wall time.
+
+### Conversation flow fixes
+
+During testing, two model behaviour issues surfaced:
+
+**Issue 1: Model mixed questions and triage in one response** — produced a question followed immediately by a triage block in the same turn. Fixed in two places: (1) system prompt reworded to "always ask 1-2 questions before triaging, never both in the same reply"; (2) parser now searches for `\nTRIAGE` mid-text and extracts just the triage block if found.
+
+**Issue 2: Model appended questions after the triage block** — triage card showed extra text after "Seek help if:". Fixed by truncating the response at the end of the "Seek help if:" line via regex.
+
+**Issue 3: Model skipped questions entirely** — prompt said "you *may* ask", which the model treated as optional. Changed to "always ask 1-2 follow-up questions before triaging".
+
+**Hard cap in code** — after 2 assistant turns, a system message is injected: "You have asked enough questions. Provide the triage assessment now." Ensures the gathering phase can never run indefinitely regardless of model behaviour.
+
+---
+
+## Open threads (as of 2026-04-24)
 
 - [ ] Test image + voice input end-to-end on device
-- [ ] Measure inference latency on Pixel 7 when available
 - [ ] Verify Chinese language output (text + TTS)
 - [ ] Cactus SDK watch: check if cactus-react-native ≥ 1.12 is on npm
 - [ ] Model routing: fast first-pass classifier → deep reasoning for High/Emergency
