@@ -1,10 +1,10 @@
 import { getContext } from './model';
 
 const SYSTEM_PROMPT = `You are an offline medical triage assistant.
-Ask at most 2 short follow-up questions to gather information, then give a triage assessment.
-If the situation is clearly an emergency, assess immediately.
+You may ask up to 2 follow-up questions (in 1 or 2 turns) to gather information, then give a triage assessment.
+For clear emergencies, skip questions and triage immediately.
 
-When giving the triage assessment, use exactly this format:
+Triage assessment format (start with "TRIAGE" on the first line):
 TRIAGE
 Severity: [Low / Medium / High / Emergency]
 Likely cause: <one line>
@@ -13,7 +13,7 @@ Immediate action:
   2. <step>
 Seek help if: <condition>
 
-Keep gathering responses to 1 sentence. Always respond in the same language the user used.`;
+Keep questions brief. Always respond in the same language the user used.`;
 
 export type AssistantResponse = {
   phase: 'gathering' | 'triage';
@@ -39,10 +39,15 @@ export async function sendMessage(
       ]
     : userText;
 
+  // Count assistant turns in history to enforce the 2-question cap
+  const gatheringTurns = history.filter(m => m.role === 'assistant').length;
+  const forceTriage = gatheringTurns >= 2;
+
   const messages = [
     { role: 'system' as const, content: SYSTEM_PROMPT },
     ...history,
     { role: 'user' as const, content: userContent },
+    ...(forceTriage ? [{ role: 'system' as const, content: 'You have asked enough questions. Provide the triage assessment now.' }] : []),
   ];
 
   console.log('[ASSISTANT] Request messages:');
@@ -87,7 +92,11 @@ export async function sendMessage(
     ? raw.slice(thinkEnd + '<channel|>'.length).trim()
     : raw.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim() || raw;
 
-  console.log('[ASSISTANT] Cleaned text:', text);
-  const isTriage = text.startsWith('TRIAGE');
-  return { phase: isTriage ? 'triage' : 'gathering', message: text };
+  // If triage block appears mid-response (model mixed Q + triage), extract just the triage
+  const triageIdx = text.indexOf('\nTRIAGE');
+  const normalized = triageIdx !== -1 ? text.slice(triageIdx + 1).trim() : text;
+
+  console.log('[ASSISTANT] Cleaned text:', normalized);
+  const isTriage = normalized.startsWith('TRIAGE');
+  return { phase: isTriage ? 'triage' : 'gathering', message: normalized };
 }
