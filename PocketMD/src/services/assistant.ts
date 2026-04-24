@@ -1,10 +1,9 @@
 import { getContext } from './model';
 
 const SYSTEM_PROMPT = `You are an offline medical triage assistant.
-You may ask up to 2 follow-up questions (in 1 or 2 turns) to gather information, then give a triage assessment.
-For clear emergencies, skip questions and triage immediately.
+Always ask 1-2 follow-up questions before triaging (in 1 or 2 turns). Only skip questions for clear life-threatening emergencies.
 
-Triage assessment format (start with "TRIAGE" on the first line):
+After gathering, give the triage assessment in EXACTLY this format — nothing before or after it:
 TRIAGE
 Severity: [Low / Medium / High / Emergency]
 Likely cause: <one line>
@@ -96,7 +95,12 @@ export async function sendMessage(
   const triageIdx = text.indexOf('\nTRIAGE');
   const normalized = triageIdx !== -1 ? text.slice(triageIdx + 1).trim() : text;
 
-  console.log('[ASSISTANT] Cleaned text:', normalized);
+  // Strip anything the model appended after the triage block (e.g. follow-up questions)
   const isTriage = normalized.startsWith('TRIAGE');
-  return { phase: isTriage ? 'triage' : 'gathering', message: normalized };
+  const final = isTriage
+    ? normalized.replace(/(\nSeek help if:[^\n]*)[\s\S]*$/, '$1').trim()
+    : normalized;
+
+  console.log('[ASSISTANT] Cleaned text:', final);
+  return { phase: isTriage ? 'triage' : 'gathering', message: final };
 }
