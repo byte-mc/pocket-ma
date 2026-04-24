@@ -1,4 +1,5 @@
 import { getContext } from './model';
+import { type Region, getLocationContext } from '../data/regionalKnowledge';
 
 const SYSTEM_PROMPT = `You are an offline medical triage assistant.
 Always ask 1-2 follow-up questions before triaging (in 1 or 2 turns). Only skip questions for clear life-threatening emergencies.
@@ -28,6 +29,7 @@ export async function sendMessage(
   history: ConversationMessage[],
   userText: string,
   imagePath?: string,
+  region?: Region,
 ): Promise<AssistantResponse> {
   const ctx = getContext();
 
@@ -42,8 +44,12 @@ export async function sendMessage(
   const gatheringTurns = history.filter(m => m.role === 'assistant').length;
   const forceTriage = gatheringTurns >= 2;
 
+  const systemContent = region
+    ? `${SYSTEM_PROMPT}\n\n${getLocationContext(region)}`
+    : SYSTEM_PROMPT;
+
   const messages = [
-    { role: 'system' as const, content: SYSTEM_PROMPT },
+    { role: 'system' as const, content: systemContent },
     ...history,
     { role: 'user' as const, content: userContent },
     ...(forceTriage ? [{ role: 'system' as const, content: 'You have asked enough questions. Provide the triage assessment now.' }] : []),

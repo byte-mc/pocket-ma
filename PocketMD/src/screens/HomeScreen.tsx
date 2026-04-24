@@ -19,6 +19,7 @@ import {
   type ConversationMessage,
   sendMessage,
 } from '../services/assistant';
+import { type Region, REGIONS } from '../data/regionalKnowledge';
 import { initModel, initMultimodal } from '../services/model';
 import { listen, requestMicPermission } from '../services/speech';
 
@@ -152,6 +153,8 @@ export default function HomeScreen() {
   const [listening, setListening] = useState(false);
   const [mmProjProgress, setMmProjProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
+  const [showRegionPicker, setShowRegionPicker] = useState(false);
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -187,7 +190,7 @@ export default function HomeScreen() {
 
     try {
       const history = buildHistory(messages);
-      const response = await sendMessage(history, text, imagePath);
+      const response = await sendMessage(history, text, imagePath, selectedRegion ?? undefined);
       const truncated = response.message.startsWith('(Sorry,');
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -373,11 +376,18 @@ export default function HomeScreen() {
             <Text style={styles.headerSub}>AI Medical Assistant</Text>
           </View>
         </View>
-        {hasMessages && (
-          <TouchableOpacity onPress={handleNew} style={styles.newButton}>
-            <Text style={styles.newButtonText}>New</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => setShowRegionPicker(true)} style={styles.locationPill}>
+            <Text style={styles.locationPillText}>
+              {selectedRegion ? `${selectedRegion.emoji} ${selectedRegion.label.split(',')[0]}` : '🌍 Location'}
+            </Text>
           </TouchableOpacity>
-        )}
+          {hasMessages && (
+            <TouchableOpacity onPress={handleNew} style={styles.newButton}>
+              <Text style={styles.newButtonText}>New</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Messages */}
@@ -397,6 +407,20 @@ export default function HomeScreen() {
               Describe your symptom by text, voice, or photo.{'\n'}
               I'll ask a couple of questions, then assess.
             </Text>
+            <TouchableOpacity style={styles.locationBanner} onPress={() => setShowRegionPicker(true)}>
+              <Text style={styles.locationBannerEmoji}>{selectedRegion ? selectedRegion.emoji : '📍'}</Text>
+              <View style={styles.locationBannerText}>
+                <Text style={styles.locationBannerTitle}>
+                  {selectedRegion ? selectedRegion.label : 'Set your location'}
+                </Text>
+                <Text style={styles.locationBannerSub}>
+                  {selectedRegion
+                    ? 'Tap to change region'
+                    : 'For region-specific triage'}
+                </Text>
+              </View>
+              <Text style={styles.locationBannerChevron}>›</Text>
+            </TouchableOpacity>
             <View style={styles.emptyChips}>
               {['Twisted ankle', 'Chest pain', 'Rash on skin'].map(t => (
                 <TouchableOpacity key={t} style={styles.chip} onPress={() => handleSend(t)}>
@@ -458,6 +482,32 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Region picker */}
+      <Modal visible={showRegionPicker} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowRegionPicker(false)}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHandle} />
+            <Text style={styles.pickerTitle}>Select Your Location</Text>
+            <Text style={styles.pickerSub}>Adjusts probable causes to regional disease patterns</Text>
+            {REGIONS.map(r => (
+              <TouchableOpacity
+                key={r.id}
+                style={[styles.pickerRow, selectedRegion?.id === r.id && styles.pickerRowSelected]}
+                onPress={() => { setSelectedRegion(r); setShowRegionPicker(false); }}>
+                <Text style={styles.pickerEmoji}>{r.emoji}</Text>
+                <Text style={styles.pickerLabel}>{r.label}</Text>
+                {selectedRegion?.id === r.id && <Text style={styles.pickerCheck}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+            {selectedRegion && (
+              <TouchableOpacity style={styles.pickerClear} onPress={() => { setSelectedRegion(null); setShowRegionPicker(false); }}>
+                <Text style={styles.pickerClearText}>Clear location</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* mmproj download modal */}
       <Modal visible={mmProjProgress !== null} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -518,8 +568,15 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: C.white, letterSpacing: 0.3 },
   headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
+  locationPill: {
+    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
+    maxWidth: 130,
+  },
+  locationPillText: { fontSize: 12, color: C.white, fontWeight: '600' },
   newButton: {
     paddingHorizontal: 14, paddingVertical: 7,
     backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
@@ -582,6 +639,45 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   chipText: { fontSize: 14, color: C.primary, fontWeight: '500' },
+
+  // ── Location banner (empty state) ──
+  locationBanner: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.white, borderRadius: 14, padding: 14,
+    marginTop: 24, width: '100%', gap: 12,
+    borderWidth: 1, borderColor: C.border,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  locationBannerEmoji: { fontSize: 28 },
+  locationBannerText: { flex: 1 },
+  locationBannerTitle: { fontSize: 15, fontWeight: '600', color: C.textDark },
+  locationBannerSub: { fontSize: 12, color: C.textMid, marginTop: 2 },
+  locationBannerChevron: { fontSize: 22, color: C.textLight, fontWeight: '300' },
+
+  // ── Region picker sheet ──
+  pickerSheet: {
+    backgroundColor: C.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+  },
+  pickerHandle: {
+    width: 40, height: 4, backgroundColor: C.border,
+    borderRadius: 2, alignSelf: 'center', marginBottom: 20,
+  },
+  pickerTitle: { fontSize: 18, fontWeight: '700', color: C.textDark, marginBottom: 4 },
+  pickerSub: { fontSize: 13, color: C.textMid, marginBottom: 16 },
+  pickerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  pickerRowSelected: { backgroundColor: `${C.primary}15` },
+  pickerEmoji: { fontSize: 22, width: 32, textAlign: 'center' },
+  pickerLabel: { flex: 1, fontSize: 15, color: C.textDark },
+  pickerCheck: { fontSize: 16, color: C.primary, fontWeight: '700' },
+  pickerClear: { marginTop: 12, alignItems: 'center', paddingVertical: 10 },
+  pickerClearText: { fontSize: 14, color: '#E74C3C' },
 
   // ── Thinking ──
   thinkingRow: { paddingHorizontal: 16, paddingVertical: 4, flexDirection: 'row' },

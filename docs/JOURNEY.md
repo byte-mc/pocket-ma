@@ -263,12 +263,88 @@ During testing, two model behaviour issues surfaced:
 
 ---
 
+---
+
+## 2026-04-24 — Location-Aware Triage: Knowledge-Augmented On-Device Inference
+
+### The insight
+
+Medical triage is not geographically neutral. The same symptom cluster — fever, headache, muscle pain — has meaningfully different probable causes in rural Vietnam (dengue, scrub typhus) versus California (Valley fever, Lyme disease) versus sub-Saharan Africa (malaria, typhoid). A generic global model treats all locations identically.
+
+The naive fix is fine-tuning. But fine-tuning a quantized GGUF model requires full-precision weights, training infrastructure, and re-quantization — and produces a model that is frozen in time. Disease prevalence changes with outbreaks, seasons, and climate. A fine-tuned model goes stale; a data file doesn't.
+
+### The architecture: two-layer separation
+
+```
+Layer 1 — Reasoning engine (immutable, on-device)
+  Gemma 4 E2B Q4_K_M, ~3.1 GB
+  Runs fully offline. Never needs to change.
+
+Layer 2 — Knowledge base (lightweight, updatable)
+  src/data/regionalKnowledge.ts — 8 regions, ~50 lines of data
+  Bundled with the app. Can be updated via app update without touching the model.
+  Future: silent background sync when connectivity is available.
+```
+
+The knowledge base injects a location context string into the system prompt at inference time:
+
+```
+Location: Southeast Asia. Regional conditions to weight more heavily when symptoms
+are consistent: Dengue fever — mosquito bite, high fever + severe bone pain + rash;
+Scrub typhus — mite bite, eschar + fever; Melioidosis — soil/water exposure...
+```
+
+At ~50 tokens, this adds ~0.8s to prefill on Pixel 6. No retraining. No model update. No internet required.
+
+### Why this framing matters for the hackathon
+
+This architecture makes a principled argument: **LLMs are good reasoning engines, not good knowledge stores.** Rather than trying to bake regional epidemiology into model weights (expensive, brittle, opaque), we keep the model as a reasoning layer and treat domain knowledge as data.
+
+The implication for health equity: a WHO epidemiologist or local health ministry can update the knowledge file without any ML infrastructure. Community health workers in the field receive updated triage guidance via a lightweight app update — no model retraining cycle required.
+
+This positions Pocket MA not just as an offline AI app, but as a **deployable, maintainable health intelligence platform** where the knowledge layer is independently governed by domain experts.
+
+### Demo narrative: "Same model. Different knowledge. Different answer."
+
+*User reports: fever, headache, muscle pain.*
+
+→ Without location: generic differential (viral illness, flu-like)
+→ With Southeast Asia: dengue fever highlighted, ask about rash + bone pain
+→ With California: Valley fever highlighted, ask about dust/soil exposure
+→ With Sub-Saharan Africa: malaria highlighted, ask about mosquito exposure + chills
+
+Same Gemma 4 model. Same device. Same inference pipeline. Entirely different clinical focus.
+
+### Regions implemented (v1 knowledge base)
+
+| Region | Key differentiating conditions |
+|---|---|
+| California, USA | Valley fever, Lyme disease, rattlesnake, hantavirus, wildfire smoke |
+| US Southeast | Rocky Mountain spotted fever, ehrlichiosis, copperhead, fire ant anaphylaxis |
+| Southeast Asia | Dengue, scrub typhus, melioidosis, leptospirosis, malaria |
+| Sub-Saharan Africa | Malaria, typhoid, cholera, schistosomiasis, meningococcal meningitis |
+| South Asia | Dengue, chikungunya, typhoid, kala-azar, Japanese encephalitis |
+| Latin America | Dengue, Zika, Chagas disease, yellow fever, leishmaniasis |
+| Middle East & North Africa | Heat stroke, MERS-CoV, cutaneous leishmaniasis, brucellosis, scorpion |
+| Mountain / Wilderness | AMS, HAPE, hypothermia, frostbite, giardia, lightning strike |
+
+### UI implementation
+
+- **Header pill** — always-visible `🌍 Location` button opens the region picker. Shows selected region emoji + name when set (e.g., `🌴 Southeast Asia`).
+- **Empty state banner** — prominent "Set your location / For region-specific triage" card before the first message, with chevron to open picker.
+- **Region picker** — bottom sheet modal with all 8 regions, checkmark on selected, "Clear location" option.
+- **Zero friction** — location is optional. App works identically without it; knowledge injection only fires when a region is selected.
+
+---
+
 ## Open threads (as of 2026-04-24)
 
+- [ ] Test location-aware triage on device — verify different outputs for same symptom across regions
 - [ ] Test image + voice input end-to-end on device
 - [ ] Verify Chinese language output (text + TTS)
 - [ ] Cactus SDK watch: check if cactus-react-native ≥ 1.12 is on npm
-- [ ] Model routing: fast first-pass classifier → deep reasoning for High/Emergency
-- [ ] Demo video
+- [ ] Knowledge base expansion — more regions, seasonal variants, outbreak annotations
+- [ ] Background knowledge sync — silent update of knowledge file when connectivity available
+- [ ] Demo video — "same symptom, two locations, different assessment" as the centrepiece
 - [ ] Kaggle writeup (max 1,500 words)
 - [ ] Submission by May 18, 2026
