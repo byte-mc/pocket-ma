@@ -50,10 +50,9 @@ export async function sendMessage(
     console.log(`  [${i}] ${m.role}:`, JSON.stringify(m.content).slice(0, 200));
   });
 
-  // Gathering turns need ~60 tokens; triage format is ~120. Cap tightly to skip
-  // wasted decode time — history length is a proxy for which phase we're in.
-  const isLikelyTriage = history.length >= 4;
-  const n_predict = isLikelyTriage ? 200 : 80;
+  // Gathering turns need ~35 tokens; triage format peaks at ~100. Use 150 as a
+  // single safe cap — tight enough to skip wasted decode, loose enough for triage.
+  const n_predict = 150;
 
   const wallStart = Date.now();
 
@@ -68,7 +67,7 @@ export async function sendMessage(
   const wallMs = Date.now() - wallStart;
   const t = result.timings;
   console.log(
-    `[PERF] wall=${wallMs}ms n_predict=${n_predict}` +
+    `[PERF] wall=${wallMs}ms` +
     ` | prefill: ${t.prompt_n} tok @ ${t.prompt_per_second.toFixed(1)} t/s (${t.prompt_ms.toFixed(0)}ms)` +
     ` | decode: ${t.predicted_n} tok @ ${t.predicted_per_second.toFixed(1)} t/s (${t.predicted_ms.toFixed(0)}ms)`
   );
