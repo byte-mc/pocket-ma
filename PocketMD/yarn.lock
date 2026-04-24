@@ -2689,9 +2689,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"PocketMD@workspace:.":
+"PocketMA@workspace:.":
   version: 0.0.0-use.local
-  resolution: "PocketMD@workspace:."
+  resolution: "PocketMA@workspace:."
   dependencies:
     "@babel/core": ^7.25.2
     "@babel/preset-env": ^7.25.3

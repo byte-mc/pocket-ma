@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -21,6 +22,25 @@ import {
 import { initModel, initMultimodal } from '../services/model';
 import { listen, requestMicPermission } from '../services/speech';
 
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const C = {
+  primary:   '#0E7C6E',
+  primaryDk: '#0A5E53',
+  bg:        '#F2F4F7',
+  white:     '#FFFFFF',
+  textDark:  '#1A1A2E',
+  textMid:   '#5A6473',
+  textLight: '#9BA5B4',
+  border:    '#E4E8EF',
+  userBubble:'#0E7C6E',
+  aiBubble:  '#FFFFFF',
+  severityLow:       '#27AE60',
+  severityMedium:    '#F39C12',
+  severityHigh:      '#E67E22',
+  severityEmergency: '#E74C3C',
+};
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 type AppState = 'downloading' | 'initializing' | 'ready' | 'thinking' | 'error';
 
 type ChatMessage = {
@@ -43,6 +63,86 @@ function buildHistory(chatMessages: ChatMessage[]): ConversationMessage[] {
   }));
 }
 
+// ── Brand icon: bold "P" with "+" tucked at lower-right ──────────────────────
+function BrandIcon({ size = 32, color = '#fff' }: { size?: number; color?: string }) {
+  const plusSize = size * 0.32;
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ width: size * 0.72, height: size }}>
+        <Text style={{
+          fontSize: size, fontWeight: '300', color,
+          lineHeight: size, letterSpacing: -1,
+          includeFontPadding: false,
+        }}>P</Text>
+        <Text style={{
+          fontSize: plusSize, fontWeight: '900', color: '#FF6B2B',
+          position: 'absolute', top: size * 0.14, right: size * 0.28,
+          includeFontPadding: false,
+        }}>+</Text>
+      </View>
+    </View>
+  );
+}
+
+// ── Triage card helper ────────────────────────────────────────────────────────
+function parseSeverity(text: string): 'Low' | 'Medium' | 'High' | 'Emergency' | null {
+  const m = text.match(/Severity:\s*(Low|Medium|High|Emergency)/i);
+  return m ? (m[1] as any) : null;
+}
+
+function severityColor(s: string | null) {
+  switch (s) {
+    case 'Low':       return C.severityLow;
+    case 'Medium':    return C.severityMedium;
+    case 'High':      return C.severityHigh;
+    case 'Emergency': return C.severityEmergency;
+    default:          return C.primary;
+  }
+}
+
+function TriageCard({ text }: { text: string }) {
+  const severity = parseSeverity(text);
+  const color = severityColor(severity);
+  // Remove the "TRIAGE\n" header line before displaying
+  const body = text.replace(/^TRIAGE\s*\n/, '');
+  return (
+    <View style={[styles.triageCard, { borderLeftColor: color }]}>
+      {severity && (
+        <View style={[styles.severityBadge, { backgroundColor: color }]}>
+          <Text style={styles.severityBadgeText}>{severity.toUpperCase()}</Text>
+        </View>
+      )}
+      <Text style={styles.triageCardText}>{body}</Text>
+    </View>
+  );
+}
+
+// ── Thinking dots animation ───────────────────────────────────────────────────
+function ThinkingDots() {
+  const [dot, setDot] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setDot(d => (d + 1) % 4), 400);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <View style={styles.thinkingRow}>
+      <View style={styles.thinkingBubble}>
+        <Text style={styles.thinkingText}>{'Thinking' + '.'.repeat(dot)}</Text>
+      </View>
+    </View>
+  );
+}
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+function ProgressBar({ progress }: { progress: number }) {
+  return (
+    <View style={styles.progressTrack}>
+      <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+    </View>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const [appState, setAppState] = useState<AppState>('downloading');
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -86,7 +186,7 @@ export default function HomeScreen() {
     scrollToBottom();
 
     try {
-      const history = buildHistory(messages); // history before this message
+      const history = buildHistory(messages);
       const response = await sendMessage(history, text, imagePath);
       const truncated = response.message.startsWith('(Sorry,');
       const assistantMsg: ChatMessage = {
@@ -95,7 +195,6 @@ export default function HomeScreen() {
         text: response.message,
         isTriageResult: response.phase === 'triage',
       };
-      // If truncated, also roll back the user message so history stays clean
       setMessages(prev => {
         const withAssistant = [...prev, assistantMsg];
         return truncated ? prev.slice(0, -1).concat(assistantMsg) : withAssistant;
@@ -108,7 +207,7 @@ export default function HomeScreen() {
     }
   }
 
-  function handleTriageNow() {
+  function handleAssessNow() {
     handleSend('Please assess and provide the triage now.');
   }
 
@@ -168,65 +267,94 @@ export default function HomeScreen() {
     }
   }
 
-  // ── Loading screens ──────────────────────────────────────────────────────
+  // ── Loading screens ───────────────────────────────────────────────────────
 
   if (appState === 'downloading') {
     return (
-      <View style={styles.center}>
-        <Text style={styles.loadLabel}>Downloading model…</Text>
-        <Text style={styles.loadProgress}>{Math.round(downloadProgress * 100)}%</Text>
-        <Text style={styles.loadSub}>~3.1 GB · one-time download</Text>
-        <ActivityIndicator size="large" style={{ marginTop: 16 }} />
+      <View style={styles.loadScreen}>
+        <StatusBar barStyle="light-content" backgroundColor={C.primary} />
+        <View style={styles.loadBrand}>
+          <View style={styles.loadBrandIconWrap}>
+            <BrandIcon size={64} color={C.primary} />
+          </View>
+          <Text style={styles.loadBrandName}>Pocket MA</Text>
+          <Text style={styles.loadBrandSub}>AI Medical Assistant</Text>
+        </View>
+        <View style={styles.loadCard}>
+          <Text style={styles.loadLabel}>Downloading AI model</Text>
+          <Text style={styles.loadSub}>~3.1 GB · one-time download</Text>
+          <ProgressBar progress={downloadProgress} />
+          <Text style={styles.loadPercent}>{Math.round(downloadProgress * 100)}%</Text>
+        </View>
       </View>
     );
   }
 
   if (appState === 'initializing') {
     return (
-      <View style={styles.center}>
-        <Text style={styles.loadLabel}>Loading model…</Text>
-        <ActivityIndicator size="large" style={{ marginTop: 16 }} />
+      <View style={styles.loadScreen}>
+        <StatusBar barStyle="light-content" backgroundColor={C.primary} />
+        <View style={styles.loadBrand}>
+          <View style={styles.loadBrandIconWrap}>
+            <BrandIcon size={64} color={C.primary} />
+          </View>
+          <Text style={styles.loadBrandName}>Pocket MA</Text>
+          <Text style={styles.loadBrandSub}>AI Medical Assistant</Text>
+        </View>
+        <View style={styles.loadCard}>
+          <Text style={styles.loadLabel}>Loading model into memory…</Text>
+          <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 16 }} />
+        </View>
       </View>
     );
   }
 
   if (appState === 'error') {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={styles.loadScreen}>
+        <StatusBar barStyle="light-content" backgroundColor={C.primary} />
+        <View style={styles.loadCard}>
+          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
       </View>
     );
   }
 
-  // ── Chat UI ──────────────────────────────────────────────────────────────
+  // ── Chat UI ───────────────────────────────────────────────────────────────
 
   function renderMessage({ item }: { item: ChatMessage }) {
     const isUser = item.role === 'user';
     return (
       <View style={[styles.bubbleRow, isUser ? styles.bubbleRowUser : styles.bubbleRowAI]}>
-        {item.imagePath && (
-          <Image
-            source={{ uri: `file://${item.imagePath}` }}
-            style={styles.inlineThumbnail}
-          />
+        {!isUser && (
+          <View style={styles.avatarDot}>
+            <BrandIcon size={16} color={C.white} />
+          </View>
         )}
-        <View style={[
-          styles.bubble,
-          isUser ? styles.bubbleUser : styles.bubbleAI,
-          item.isTriageResult && styles.bubbleTriage,
-        ]}>
-          <Text style={[
-            styles.bubbleText,
-            item.isTriageResult && styles.bubbleTriageText,
-          ]}>
-            {item.text}
-          </Text>
+        <View style={styles.bubbleContent}>
+          {item.imagePath && (
+            <Image
+              source={{ uri: `file://${item.imagePath}` }}
+              style={styles.inlineThumbnail}
+            />
+          )}
+          {item.isTriageResult ? (
+            <TriageCard text={item.text} />
+          ) : (
+            <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAI]}>
+              <Text style={[styles.bubbleText, isUser && styles.bubbleTextUser]}>
+                {item.text}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     );
   }
 
   const hasMessages = messages.length > 0;
+  const canSend = appState !== 'thinking' && (!!input.trim() || !!imagePath);
 
   return (
     <KeyboardAvoidingView
@@ -234,9 +362,17 @@ export default function HomeScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}>
 
+      <StatusBar barStyle="light-content" backgroundColor={C.primaryDk} />
+
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Pocket MA</Text>
+        <View style={styles.headerLeft}>
+          <BrandIcon size={28} color={C.white} />
+          <View>
+            <Text style={styles.headerTitle}>Pocket MA</Text>
+            <Text style={styles.headerSub}>AI Medical Assistant</Text>
+          </View>
+        </View>
         {hasMessages && (
           <TouchableOpacity onPress={handleNew} style={styles.newButton}>
             <Text style={styles.newButtonText}>New</Text>
@@ -253,24 +389,32 @@ export default function HomeScreen() {
         contentContainerStyle={styles.messageList}
         ListEmptyComponent={
           <View style={styles.emptyState}>
+            <View style={styles.emptyIconWrap}>
+            <BrandIcon size={64} color={C.primary} />
+          </View>
             <Text style={styles.emptyTitle}>What's the situation?</Text>
-            <Text style={styles.emptySub}>Describe a symptom, take a photo, or speak.</Text>
+            <Text style={styles.emptySub}>
+              Describe your symptom by text, voice, or photo.{'\n'}
+              I'll ask a couple of questions, then assess.
+            </Text>
+            <View style={styles.emptyChips}>
+              {['Twisted ankle', 'Chest pain', 'Rash on skin'].map(t => (
+                <TouchableOpacity key={t} style={styles.chip} onPress={() => handleSend(t)}>
+                  <Text style={styles.chipText}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         }
       />
 
       {/* Thinking indicator */}
-      {appState === 'thinking' && (
-        <View style={styles.thinkingRow}>
-          <ActivityIndicator size="small" />
-          <Text style={styles.thinkingText}>Thinking…</Text>
-        </View>
-      )}
+      {appState === 'thinking' && <ThinkingDots />}
 
-      {/* Triage Now button */}
+      {/* Assess Now button */}
       {hasMessages && appState === 'ready' && (
-        <TouchableOpacity style={styles.triageNowButton} onPress={handleTriageNow}>
-          <Text style={styles.triageNowText}>Triage Now</Text>
+        <TouchableOpacity style={styles.assessButton} onPress={handleAssessNow}>
+          <Text style={styles.assessButtonText}>⚡ Assess Now</Text>
         </TouchableOpacity>
       )}
 
@@ -289,12 +433,16 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.iconButton} onPress={handleCamera}>
           <Text style={styles.iconText}>📷</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton} onPress={handleMic} disabled={listening}>
-          <Text style={styles.iconText}>{listening ? '⏳' : '🎙️'}</Text>
+        <TouchableOpacity
+          style={[styles.iconButton, listening && styles.iconButtonActive]}
+          onPress={handleMic}
+          disabled={listening}>
+          <Text style={styles.iconText}>{listening ? '🔴' : '🎙️'}</Text>
         </TouchableOpacity>
         <TextInput
           style={styles.inputField}
           placeholder="Describe symptom…"
+          placeholderTextColor={C.textLight}
           value={input}
           onChangeText={setInput}
           multiline
@@ -303,9 +451,9 @@ export default function HomeScreen() {
           blurOnSubmit={false}
         />
         <TouchableOpacity
-          style={[styles.sendButton, (!input.trim() && !imagePath) && styles.sendButtonDisabled]}
+          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
           onPress={() => handleSend()}
-          disabled={appState === 'thinking' || (!input.trim() && !imagePath)}>
+          disabled={!canSend}>
           <Text style={styles.sendButtonText}>↑</Text>
         </TouchableOpacity>
       </View>
@@ -314,10 +462,11 @@ export default function HomeScreen() {
       <Modal visible={mmProjProgress !== null} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.loadLabel}>Loading vision model…</Text>
-            <Text style={styles.loadProgress}>{Math.round((mmProjProgress ?? 0) * 100)}%</Text>
+            <Text style={styles.modalIcon}>👁️</Text>
+            <Text style={styles.loadLabel}>Loading vision model</Text>
             <Text style={styles.loadSub}>~985 MB · one-time download</Text>
-            <ActivityIndicator size="large" style={{ marginTop: 12 }} />
+            <ProgressBar progress={mmProjProgress ?? 0} />
+            <Text style={styles.loadPercent}>{Math.round((mmProjProgress ?? 0) * 100)}%</Text>
           </View>
         </View>
       </Modal>
@@ -325,91 +474,188 @@ export default function HomeScreen() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#fff' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  flex: { flex: 1, backgroundColor: C.bg },
 
-  // Loading
-  loadLabel: { fontSize: 16, marginBottom: 8 },
-  loadProgress: { fontSize: 32, fontWeight: '700' },
-  loadSub: { fontSize: 13, color: '#888', marginTop: 4 },
-  errorText: { color: 'red', fontSize: 14 },
+  // ── Loading / splash ──
+  loadScreen: {
+    flex: 1, backgroundColor: C.primary,
+    justifyContent: 'center', alignItems: 'center', padding: 32,
+  },
+  loadBrand: { alignItems: 'center', marginBottom: 48 },
+  loadBrandIconWrap: {
+    width: 96, height: 96, borderRadius: 48,
+    backgroundColor: C.white,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  loadBrandName: { fontSize: 32, fontWeight: '800', color: C.white, letterSpacing: 0.5 },
+  loadBrandSub: { fontSize: 15, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  loadCard: {
+    backgroundColor: C.white, borderRadius: 20, padding: 28,
+    width: '100%', alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  loadLabel: { fontSize: 16, fontWeight: '600', color: C.textDark, marginBottom: 4 },
+  loadSub: { fontSize: 13, color: C.textMid, marginBottom: 16 },
+  loadPercent: { fontSize: 28, fontWeight: '700', color: C.primary, marginTop: 12 },
+  progressTrack: {
+    width: '100%', height: 6, backgroundColor: C.border,
+    borderRadius: 3, overflow: 'hidden',
+  },
+  progressFill: { height: '100%', backgroundColor: C.primary, borderRadius: 3 },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: C.textDark, marginBottom: 8 },
+  errorText: { fontSize: 14, color: '#E74C3C', textAlign: 'center' },
 
-  // Header
+  // ── Header ──
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 48, paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ddd',
+    paddingHorizontal: 16, paddingTop: 48, paddingBottom: 14,
+    backgroundColor: C.primary,
   },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
-  newButton: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#f0f0f0', borderRadius: 8 },
-  newButtonText: { fontSize: 14, color: '#333' },
-
-  // Messages
-  messageList: { padding: 16, gap: 12, flexGrow: 1 },
-  bubbleRow: { flexDirection: 'column', maxWidth: '80%' },
-  bubbleRowUser: { alignSelf: 'flex-end', alignItems: 'flex-end' },
-  bubbleRowAI: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleUser: { backgroundColor: '#007AFF' },
-  bubbleAI: { backgroundColor: '#f0f0f0' },
-  bubbleTriage: { backgroundColor: '#e8f5e9', borderWidth: 1, borderColor: '#a5d6a7', maxWidth: '100%', alignSelf: 'stretch' },
-  bubbleText: { fontSize: 15, lineHeight: 22, color: '#000' },
-  bubbleTriageText: { fontFamily: 'monospace', fontSize: 14, lineHeight: 22, color: '#1b5e20' },
-  inlineThumbnail: { width: 120, height: 120, borderRadius: 10, marginBottom: 6 },
-
-  // Empty state
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
-  emptyTitle: { fontSize: 20, fontWeight: '600', color: '#333', marginBottom: 8 },
-  emptySub: { fontSize: 15, color: '#888', textAlign: 'center' },
-
-  // Thinking
-  thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 8 },
-  thinkingText: { fontSize: 14, color: '#888' },
-
-  // Triage Now
-  triageNowButton: {
-    marginHorizontal: 16, marginBottom: 4,
-    backgroundColor: '#e8f5e9', borderWidth: 1, borderColor: '#a5d6a7',
-    borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: C.white, letterSpacing: 0.3 },
+  headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
+  newButton: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
   },
-  triageNowText: { fontSize: 15, fontWeight: '600', color: '#2e7d32' },
+  newButtonText: { fontSize: 14, color: C.white, fontWeight: '600' },
 
-  // Image preview above input
-  imagePreviewRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 4 },
-  imagePreview: { width: 64, height: 64, borderRadius: 8 },
+  // ── Messages ──
+  messageList: { padding: 16, gap: 16, flexGrow: 1 },
+  bubbleRow: { flexDirection: 'row', gap: 8 },
+  bubbleRowUser: { justifyContent: 'flex-end' },
+  bubbleRowAI: { justifyContent: 'flex-start', alignItems: 'flex-end' },
+  bubbleContent: { flexDirection: 'column', maxWidth: '80%', gap: 4 },
+  avatarDot: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: C.primary, justifyContent: 'center', alignItems: 'center',
+    marginBottom: 2,
+  },
+  bubble: {
+    borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  bubbleUser: {
+    backgroundColor: C.userBubble,
+    borderBottomRightRadius: 4,
+  },
+  bubbleAI: {
+    backgroundColor: C.aiBubble,
+    borderBottomLeftRadius: 4,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  bubbleText: { fontSize: 15, lineHeight: 22, color: C.textDark },
+  bubbleTextUser: { color: C.white },
+  inlineThumbnail: { width: 160, height: 160, borderRadius: 12, marginBottom: 4 },
+
+  // ── Triage card ──
+  triageCard: {
+    backgroundColor: C.white, borderRadius: 14, padding: 16,
+    borderLeftWidth: 4,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  severityBadge: {
+    alignSelf: 'flex-start', borderRadius: 6,
+    paddingHorizontal: 10, paddingVertical: 4, marginBottom: 10,
+  },
+  severityBadgeText: { fontSize: 12, fontWeight: '700', color: C.white, letterSpacing: 0.5 },
+  triageCardText: { fontSize: 14, lineHeight: 22, color: C.textDark, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+
+  // ── Empty state ──
+  emptyState: { flex: 1, alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 },
+  emptyIconWrap: { marginBottom: 16 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: C.textDark, marginBottom: 10 },
+  emptySub: { fontSize: 15, color: C.textMid, textAlign: 'center', lineHeight: 22 },
+  emptyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24, justifyContent: 'center' },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: C.white, borderRadius: 20,
+    borderWidth: 1, borderColor: C.border,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  chipText: { fontSize: 14, color: C.primary, fontWeight: '500' },
+
+  // ── Thinking ──
+  thinkingRow: { paddingHorizontal: 16, paddingVertical: 4, flexDirection: 'row' },
+  thinkingBubble: {
+    backgroundColor: C.white, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  thinkingText: { fontSize: 14, color: C.textMid, fontStyle: 'italic' },
+
+  // ── Assess Now ──
+  assessButton: {
+    marginHorizontal: 16, marginBottom: 6,
+    backgroundColor: C.primary, borderRadius: 12,
+    paddingVertical: 12, alignItems: 'center',
+    shadowColor: C.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  assessButtonText: { fontSize: 15, fontWeight: '700', color: C.white },
+
+  // ── Image preview ──
+  imagePreviewRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 6 },
+  imagePreview: { width: 64, height: 64, borderRadius: 10 },
   clearImage: {
     position: 'absolute', top: -4, left: 72,
-    backgroundColor: '#333', borderRadius: 10,
+    backgroundColor: C.textDark, borderRadius: 10,
     width: 20, height: 20, justifyContent: 'center', alignItems: 'center',
   },
-  clearImageText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  clearImageText: { color: C.white, fontSize: 10, fontWeight: '700' },
 
-  // Input bar
+  // ── Input bar ──
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
     paddingHorizontal: 12, paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#ddd',
-    backgroundColor: '#fff',
+    backgroundColor: C.white,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: -2 },
+    elevation: 4,
   },
   iconButton: {
-    width: 40, height: 40, borderRadius: 8,
-    backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center',
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center',
   },
+  iconButtonActive: { backgroundColor: '#FFE5E5' },
   iconText: { fontSize: 20 },
   inputField: {
     flex: 1, fontSize: 15, maxHeight: 100,
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#fafafa',
+    borderWidth: 1.5, borderColor: C.border, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 9,
+    backgroundColor: C.bg, color: C.textDark,
   },
   sendButton: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.primary, justifyContent: 'center', alignItems: 'center',
+    shadowColor: C.primary, shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  sendButtonDisabled: { backgroundColor: '#ccc' },
-  sendButtonText: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  sendButtonDisabled: {
+    backgroundColor: C.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  sendButtonText: { color: C.white, fontSize: 20, fontWeight: '700' },
 
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalBox: { backgroundColor: '#fff', borderRadius: 16, padding: 32, alignItems: 'center', width: '80%' },
+  // ── Modal ──
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  modalBox: {
+    backgroundColor: C.white, borderRadius: 20, padding: 32,
+    alignItems: 'center', width: '80%',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  modalIcon: { fontSize: 36, marginBottom: 12 },
 });
