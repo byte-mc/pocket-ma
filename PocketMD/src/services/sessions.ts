@@ -23,14 +23,20 @@ export type SessionRecord = {
 export async function loadSessions(): Promise<SessionRecord[]> {
   try {
     if (!(await RNFS.exists(SESSIONS_FILE))) return [];
-    return JSON.parse(await RNFS.readFile(SESSIONS_FILE, 'utf8'));
+    const records: SessionRecord[] = JSON.parse(await RNFS.readFile(SESSIONS_FILE, 'utf8'));
+    return records.map(r => ({ ...r, messages: r.messages ?? [] }));
   } catch {
     return [];
   }
 }
 
-export async function saveSession(record: SessionRecord): Promise<void> {
+export async function upsertSession(record: SessionRecord): Promise<void> {
   const existing = await loadSessions();
-  existing.unshift(record);
+  const idx = existing.findIndex(s => s.id === record.id);
+  if (idx !== -1) {
+    existing[idx] = record;
+  } else {
+    existing.unshift(record);
+  }
   await RNFS.writeFile(SESSIONS_FILE, JSON.stringify(existing.slice(0, 100)), 'utf8');
 }

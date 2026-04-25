@@ -20,7 +20,7 @@ import {
   sendMessage,
 } from '../services/assistant';
 import { type Region, REGIONS } from '../data/regionalKnowledge';
-import { type SessionRecord, loadSessions, saveSession } from '../services/sessions';
+import { type SessionRecord, loadSessions, upsertSession } from '../services/sessions';
 import { initModel, initMultimodal } from '../services/model';
 import { listen, requestMicPermission } from '../services/speech';
 
@@ -165,6 +165,7 @@ export default function HomeScreen() {
   const [knowledgeRefreshing, setKnowledgeRefreshing] = useState(false);
   const [knowledgeStatus, setKnowledgeStatus] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
+  const currentSessionId = useRef<string | null>(null);
 
   useEffect(() => {
     initModel(p => {
@@ -209,7 +210,19 @@ export default function HomeScreen() {
       };
       setMessages(prev => {
         const withAssistant = [...prev, assistantMsg];
-        return truncated ? prev.slice(0, -1).concat(assistantMsg) : withAssistant;
+        const final = truncated ? prev.slice(0, -1).concat(assistantMsg) : withAssistant;
+        if (!currentSessionId.current) currentSessionId.current = Date.now().toString();
+        const firstUser = final.find(m => m.role === 'user');
+        upsertSession({
+          id: currentSessionId.current,
+          startedAt: new Date().toISOString(),
+          regionLabel: selectedRegion?.label ?? null,
+          regionEmoji: selectedRegion?.emoji ?? null,
+          messageCount: final.length,
+          preview: firstUser?.text.slice(0, 80) ?? '',
+          messages: final,
+        });
+        return final;
       });
       scrollToBottom();
     } catch (e) {
@@ -223,19 +236,8 @@ export default function HomeScreen() {
     handleSend('Please assess and provide the triage now.');
   }
 
-  async function handleNew() {
-    if (messages.length > 0 && !isHistoryView) {
-      const firstUser = messages.find(m => m.role === 'user');
-      await saveSession({
-        id: Date.now().toString(),
-        startedAt: new Date().toISOString(),
-        regionLabel: selectedRegion?.label ?? null,
-        regionEmoji: selectedRegion?.emoji ?? null,
-        messageCount: messages.length,
-        preview: firstUser?.text.slice(0, 80) ?? '',
-        messages,
-      });
-    }
+  function handleNew() {
+    currentSessionId.current = null;
     setMessages([]);
     setInput('');
     setImagePath(undefined);
@@ -244,7 +246,7 @@ export default function HomeScreen() {
   }
 
   function handleOpenSession(session: SessionRecord) {
-    setMessages(session.messages as any);
+    setMessages((session.messages ?? []) as any);
     setIsHistoryView(true);
     setShowSessionModal(false);
   }
@@ -441,7 +443,12 @@ export default function HomeScreen() {
         keyExtractor={m => m.id}
         renderItem={renderMessage}
         contentContainerStyle={styles.messageList}
-        ListEmptyComponent={
+        ListEmptyComponent={isHistoryView ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No content</Text>
+            <Text style={styles.emptySub}>This session was saved before message history was stored.</Text>
+          </View>
+        ) : (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconWrap}>
             <BrandIcon size={64} color={C.primary} />
@@ -473,7 +480,7 @@ export default function HomeScreen() {
               ))}
             </View>
           </View>
-        }
+        )}
       />
 
       {/* Thinking indicator */}
