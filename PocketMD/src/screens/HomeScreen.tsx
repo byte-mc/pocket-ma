@@ -19,8 +19,8 @@ import {
   type ConversationMessage,
   sendMessage,
 } from '../services/assistant';
-import { type Region, REGIONS } from '../data/regionalKnowledge';
-import { type SessionRecord, loadSessions, upsertSession } from '../services/sessions';
+import { type Region, REGIONS, regionLabel, regionConditions } from '../data/regionalKnowledge';
+import { type SessionRecord, loadSessions, upsertSession, deleteSession } from '../services/sessions';
 import { initModel, initMultimodal } from '../services/model';
 import { listen, requestMicPermission } from '../services/speech';
 import { t, msgCount, voiceLocale, lang, type TranslationKey } from '../i18n';
@@ -66,24 +66,14 @@ function buildHistory(chatMessages: ChatMessage[]): ConversationMessage[] {
   }));
 }
 
-// ── Brand icon: bold "P" with "+" tucked at lower-right ──────────────────────
-function BrandIcon({ size = 32, color = '#fff' }: { size?: number; color?: string }) {
-  const plusSize = size * 0.32;
+const APP_ICON = require('../assets/icon.png');
+
+function AppIcon({ size = 32 }: { size?: number }) {
   return (
-    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-      <View style={{ width: size * 0.72, height: size }}>
-        <Text style={{
-          fontSize: size, fontWeight: '300', color,
-          lineHeight: size, letterSpacing: -1,
-          includeFontPadding: false,
-        }}>P</Text>
-        <Text style={{
-          fontSize: plusSize, fontWeight: '900', color: '#FF6B2B',
-          position: 'absolute', top: size * 0.14, right: size * 0.28,
-          includeFontPadding: false,
-        }}>+</Text>
-      </View>
-    </View>
+    <Image
+      source={APP_ICON}
+      style={{ width: size, height: size, borderRadius: size * 0.22 }}
+    />
   );
 }
 
@@ -265,6 +255,25 @@ export default function HomeScreen() {
     setShowSessionModal(false);
   }
 
+  function handleDeleteSession(session: SessionRecord) {
+    Alert.alert(
+      'Delete session',
+      'Remove this session from history?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            await deleteSession(session.id);
+            setPastSessions(prev => prev.filter(s => s.id !== session.id));
+            // If currently viewing this session, clear it
+            if (currentSessionId.current === session.id) handleNew();
+          },
+        },
+      ],
+    );
+  }
+
   async function openSessionModal() {
     setPastSessions(await loadSessions());
     setShowSessionModal(true);
@@ -337,7 +346,7 @@ export default function HomeScreen() {
         <StatusBar barStyle="light-content" backgroundColor={C.primary} />
         <View style={styles.loadBrand}>
           <View style={styles.loadBrandIconWrap}>
-            <BrandIcon size={64} color={C.primary} />
+            <AppIcon size={64} />
           </View>
           <Text style={styles.loadBrandName}>Pocket MA</Text>
           <Text style={styles.loadBrandSub}>{t('appSub')}</Text>
@@ -358,7 +367,7 @@ export default function HomeScreen() {
         <StatusBar barStyle="light-content" backgroundColor={C.primary} />
         <View style={styles.loadBrand}>
           <View style={styles.loadBrandIconWrap}>
-            <BrandIcon size={64} color={C.primary} />
+            <AppIcon size={64} />
           </View>
           <Text style={styles.loadBrandName}>Pocket MA</Text>
           <Text style={styles.loadBrandSub}>{t('appSub')}</Text>
@@ -391,7 +400,7 @@ export default function HomeScreen() {
       <View style={[styles.bubbleRow, isUser ? styles.bubbleRowUser : styles.bubbleRowAI]}>
         {!isUser && (
           <View style={styles.avatarDot}>
-            <BrandIcon size={16} color={C.white} />
+            <AppIcon size={20} />
           </View>
         )}
         <View style={styles.bubbleContent}>
@@ -429,7 +438,7 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <BrandIcon size={28} color={C.white} />
+          <AppIcon size={28} />
           <View>
             <Text style={styles.headerTitle}>Pocket MA</Text>
             <Text style={styles.headerSub}>{t('appSub')}</Text>
@@ -465,7 +474,7 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconWrap}>
-            <BrandIcon size={64} color={C.primary} />
+            <AppIcon size={64} />
           </View>
             <Text style={styles.emptyTitle}>{t('whatsTheSituation')}</Text>
             <View style={styles.emptyBullets}>
@@ -476,7 +485,7 @@ export default function HomeScreen() {
               <Text style={styles.locationBannerEmoji}>{selectedRegion ? selectedRegion.emoji : '📍'}</Text>
               <View style={styles.locationBannerText}>
                 <Text style={styles.locationBannerTitle}>
-                  {selectedRegion ? selectedRegion.label : t('setYourLocation')}
+                  {selectedRegion ? regionLabel(selectedRegion, lang) : t('setYourLocation')}
                 </Text>
                 <Text style={styles.locationBannerSub}>
                   {selectedRegion ? t('tapToChange') : t('forRegionSpecific')}
@@ -607,7 +616,15 @@ export default function HomeScreen() {
                     </Text>
                     <Text style={styles.sessionHistoryPreview} numberOfLines={1}>{s.preview}</Text>
                   </View>
-                  <Text style={styles.sessionHistoryChevron}>›</Text>
+                  <View style={styles.sessionRowActions}>
+                    <Text style={styles.sessionHistoryChevron}>›</Text>
+                    <TouchableOpacity
+                      style={styles.sessionDeleteBtn}
+                      onPress={() => handleDeleteSession(s)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={styles.sessionDeleteIcon}>🗑</Text>
+                    </TouchableOpacity>
+                  </View>
                 </TouchableOpacity>
               ))
             )}
@@ -625,12 +642,12 @@ export default function HomeScreen() {
               <>
                 <View style={styles.knowledgeRegionRow}>
                   <Text style={styles.pickerEmoji}>{selectedRegion.emoji}</Text>
-                  <Text style={styles.knowledgeRegionLabel}>{selectedRegion.label}</Text>
+                  <Text style={styles.knowledgeRegionLabel}>{regionLabel(selectedRegion, lang)}</Text>
                   <TouchableOpacity onPress={() => { setShowKnowledgeModal(false); setPickerSource('knowledge'); setShowRegionPicker(true); }}>
                     <Text style={styles.knowledgeChangeRegion}>{t('change')}</Text>
                   </TouchableOpacity>
                 </View>
-                {selectedRegion.conditions.map((c, i) => (
+                {regionConditions(selectedRegion, lang).map((c, i) => (
                   <View key={i} style={styles.knowledgeConditionRow}>
                     <Text style={styles.knowledgeConditionDot}>·</Text>
                     <Text style={styles.knowledgeConditionText}>{c}</Text>
@@ -672,7 +689,7 @@ export default function HomeScreen() {
                   if (pickerSource === 'knowledge') setShowKnowledgeModal(true);
                 }}>
                 <Text style={styles.pickerEmoji}>{r.emoji}</Text>
-                <Text style={styles.pickerLabel}>{r.label}</Text>
+                <Text style={styles.pickerLabel}>{regionLabel(r, lang)}</Text>
                 {selectedRegion?.id === r.id && <Text style={styles.pickerCheck}>✓</Text>}
               </TouchableOpacity>
             ))}
@@ -778,7 +795,7 @@ const styles = StyleSheet.create({
   avatarDot: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: C.primary, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 2, overflow: 'hidden',
   },
   bubble: {
     borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
@@ -888,6 +905,9 @@ const styles = StyleSheet.create({
     width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary,
   },
   sessionHistoryChevron: { fontSize: 20, color: C.textLight },
+  sessionRowActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sessionDeleteBtn: { padding: 4 },
+  sessionDeleteIcon: { fontSize: 16 },
 
   // ── History banner ──
   historyBanner: {

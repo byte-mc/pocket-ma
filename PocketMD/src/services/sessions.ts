@@ -41,3 +41,8 @@ export async function upsertSession(record: SessionRecord): Promise<void> {
   }
   await RNFS.writeFile(SESSIONS_FILE, JSON.stringify(existing.slice(0, 100)), 'utf8');
 }
+
+export async function deleteSession(id: string): Promise<void> {
+  const existing = await loadSessions();
+  await RNFS.writeFile(SESSIONS_FILE, JSON.stringify(existing.filter(s => s.id !== id)), 'utf8');
+}
