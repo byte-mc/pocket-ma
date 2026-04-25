@@ -473,7 +473,16 @@ export default function HomeScreen() {
               <Text style={styles.locationBannerChevron}>›</Text>
             </TouchableOpacity>
             <View style={styles.emptyChips}>
-              {['Twisted ankle', 'Chest pain', 'Rash on skin'].map(t => (
+              {[
+                'Chest pain',
+                'Difficulty breathing',
+                'High fever & chills',
+                'Severe headache',
+                'Rash on skin',
+                'Stomach pain & diarrhea',
+                'Twisted ankle',
+                'Animal bite / wound',
+              ].map(t => (
                 <TouchableOpacity key={t} style={styles.chip} onPress={() => handleSend(t)}>
                   <Text style={styles.chipText}>{t}</Text>
                 </TouchableOpacity>
@@ -797,15 +806,17 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 15, color: C.textMid, textAlign: 'center', lineHeight: 22 },
   emptyBullets: { alignSelf: 'stretch', marginTop: 10, paddingHorizontal: 8, gap: 6 },
   emptyBullet: { fontSize: 15, color: C.textMid, lineHeight: 22, textAlign: 'left' },
-  emptyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24, justifyContent: 'center' },
+  emptyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 20, alignSelf: 'stretch' },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    backgroundColor: C.white, borderRadius: 20,
+    width: '47.5%',
+    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: C.white, borderRadius: 12,
     borderWidth: 1, borderColor: C.border,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+    alignItems: 'center',
   },
-  chipText: { fontSize: 14, color: C.primary, fontWeight: '500' },
+  chipText: { fontSize: 13, color: C.primary, fontWeight: '500', textAlign: 'center' },
 
   // ── Location banner (empty state) ──
   locationBanner: {
