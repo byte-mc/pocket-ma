@@ -155,6 +155,7 @@ export default function HomeScreen() {
   const [error, setError] = useState('');
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [showRegionPicker, setShowRegionPicker] = useState(false);
+  const [pickerSource, setPickerSource] = useState<'home' | 'knowledge'>('home');
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   const [knowledgeRefreshing, setKnowledgeRefreshing] = useState(false);
@@ -526,7 +527,7 @@ export default function HomeScreen() {
                 <View style={styles.knowledgeRegionRow}>
                   <Text style={styles.pickerEmoji}>{selectedRegion.emoji}</Text>
                   <Text style={styles.knowledgeRegionLabel}>{selectedRegion.label}</Text>
-                  <TouchableOpacity onPress={() => { setShowKnowledgeModal(false); setShowRegionPicker(true); }}>
+                  <TouchableOpacity onPress={() => { setShowKnowledgeModal(false); setPickerSource('knowledge'); setShowRegionPicker(true); }}>
                     <Text style={styles.knowledgeChangeRegion}>Change</Text>
                   </TouchableOpacity>
                 </View>
@@ -538,7 +539,7 @@ export default function HomeScreen() {
                 ))}
               </>
             ) : (
-              <TouchableOpacity style={styles.knowledgeNoRegion} onPress={() => { setShowKnowledgeModal(false); setShowRegionPicker(true); }}>
+              <TouchableOpacity style={styles.knowledgeNoRegion} onPress={() => { setShowKnowledgeModal(false); setPickerSource('knowledge'); setShowRegionPicker(true); }}>
                 <Text style={styles.knowledgeNoRegionText}>📍 Set a location to see regional conditions</Text>
               </TouchableOpacity>
             )}
@@ -566,14 +567,22 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={r.id}
                 style={[styles.pickerRow, selectedRegion?.id === r.id && styles.pickerRowSelected]}
-                onPress={() => { setSelectedRegion(r); setShowRegionPicker(false); }}>
+                onPress={() => {
+                  setSelectedRegion(r);
+                  setShowRegionPicker(false);
+                  if (pickerSource === 'knowledge') setShowKnowledgeModal(true);
+                }}>
                 <Text style={styles.pickerEmoji}>{r.emoji}</Text>
                 <Text style={styles.pickerLabel}>{r.label}</Text>
                 {selectedRegion?.id === r.id && <Text style={styles.pickerCheck}>✓</Text>}
               </TouchableOpacity>
             ))}
             {selectedRegion && (
-              <TouchableOpacity style={styles.pickerClear} onPress={() => { setSelectedRegion(null); setShowRegionPicker(false); }}>
+              <TouchableOpacity style={styles.pickerClear} onPress={() => {
+                setSelectedRegion(null);
+                setShowRegionPicker(false);
+                if (pickerSource === 'knowledge') setShowKnowledgeModal(true);
+              }}>
                 <Text style={styles.pickerClearText}>Clear location</Text>
               </TouchableOpacity>
             )}
