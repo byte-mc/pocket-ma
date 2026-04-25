@@ -867,10 +867,10 @@ const styles = StyleSheet.create({
   // ── History banner ──
   historyBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.border, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: C.primaryDk, paddingHorizontal: 16, paddingVertical: 10,
   },
-  historyBannerText: { fontSize: 13, color: C.textMid },
-  historyBannerNew: { fontSize: 13, fontWeight: '700', color: C.primary },
+  historyBannerText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  historyBannerNew: { fontSize: 13, fontWeight: '700', color: C.white },
 
   // ── Knowledge modal ──
   knowledgeRegionRow: {
