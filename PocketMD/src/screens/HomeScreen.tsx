@@ -529,35 +529,40 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowSessionModal(false)}>
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHandle} />
-            <Text style={styles.pickerTitle}>Session</Text>
-            <View style={styles.sessionCurrent}>
-              <Text style={styles.sessionCurrentLabel}>Current session</Text>
-              <Text style={styles.sessionCurrentCount}>
-                {messages.length === 0 ? 'No messages yet' : `${messages.length} message${messages.length !== 1 ? 's' : ''}`}
-              </Text>
-            </View>
+            <Text style={styles.pickerTitle}>Sessions</Text>
             <TouchableOpacity style={styles.sessionNewBtn} onPress={handleNew}>
               <Text style={styles.sessionNewBtnText}>＋ New Session</Text>
             </TouchableOpacity>
-            <View style={styles.sessionHistorySection}>
-              <Text style={styles.sessionHistoryTitle}>Previous sessions</Text>
-              {pastSessions.length === 0 ? (
-                <Text style={styles.sessionHistoryEmpty}>No previous sessions yet.</Text>
-              ) : (
-                pastSessions.map(s => (
-                  <View key={s.id} style={styles.sessionHistoryRow}>
-                    <View style={styles.sessionHistoryMeta}>
-                      <Text style={styles.sessionHistoryDate}>
-                        {s.regionEmoji ? `${s.regionEmoji} ` : ''}
-                        {new Date(s.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        {' · '}{s.messageCount} msgs
-                      </Text>
-                      <Text style={styles.sessionHistoryPreview} numberOfLines={1}>{s.preview}</Text>
-                    </View>
+            {messages.length > 0 && (
+              <View style={[styles.sessionHistoryRow, styles.sessionHistoryRowActive]}>
+                <View style={styles.sessionHistoryMeta}>
+                  <Text style={styles.sessionHistoryDate}>
+                    {selectedRegion ? `${selectedRegion.emoji} ` : ''}
+                    Now · {messages.length} msg{messages.length !== 1 ? 's' : ''}
+                  </Text>
+                  <Text style={styles.sessionHistoryPreview} numberOfLines={1}>
+                    {messages.find(m => m.role === 'user')?.text ?? ''}
+                  </Text>
+                </View>
+                <View style={styles.sessionActiveDot} />
+              </View>
+            )}
+            {pastSessions.length === 0 && messages.length === 0 ? (
+              <Text style={styles.sessionHistoryEmpty}>No sessions yet.</Text>
+            ) : (
+              pastSessions.map(s => (
+                <View key={s.id} style={styles.sessionHistoryRow}>
+                  <View style={styles.sessionHistoryMeta}>
+                    <Text style={styles.sessionHistoryDate}>
+                      {s.regionEmoji ? `${s.regionEmoji} ` : ''}
+                      {new Date(s.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {' · '}{s.messageCount} msg{s.messageCount !== 1 ? 's' : ''}
+                    </Text>
+                    <Text style={styles.sessionHistoryPreview} numberOfLines={1}>{s.preview}</Text>
                   </View>
-                ))
-              )}
-            </View>
+                </View>
+              ))
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -813,25 +818,23 @@ const styles = StyleSheet.create({
   pickerClearText: { fontSize: 14, color: '#E74C3C' },
 
   // ── Session modal ──
-  sessionCurrent: {
-    backgroundColor: C.bg, borderRadius: 12, padding: 14, marginBottom: 12,
-  },
-  sessionCurrentLabel: { fontSize: 12, color: C.textMid, fontWeight: '600', marginBottom: 4 },
-  sessionCurrentCount: { fontSize: 16, color: C.textDark, fontWeight: '500' },
   sessionNewBtn: {
     backgroundColor: C.primary, borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', marginBottom: 20,
+    paddingVertical: 14, alignItems: 'center', marginBottom: 12,
   },
   sessionNewBtnText: { fontSize: 16, fontWeight: '700', color: C.white },
-  sessionHistorySection: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border, paddingTop: 16 },
-  sessionHistoryTitle: { fontSize: 13, fontWeight: '600', color: C.textMid, marginBottom: 10 },
-  sessionHistoryEmpty: { fontSize: 14, color: C.textLight, textAlign: 'center', paddingVertical: 16 },
+  sessionHistoryEmpty: { fontSize: 14, color: C.textLight, textAlign: 'center', paddingVertical: 20 },
   sessionHistoryRow: {
-    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
   },
-  sessionHistoryMeta: { gap: 3 },
+  sessionHistoryRowActive: { backgroundColor: `${C.primary}08`, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: 8 },
+  sessionHistoryMeta: { flex: 1, gap: 3 },
   sessionHistoryDate: { fontSize: 12, color: C.textMid, fontWeight: '500' },
   sessionHistoryPreview: { fontSize: 14, color: C.textDark },
+  sessionActiveDot: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary,
+  },
 
   // ── Knowledge modal ──
   knowledgeRegionRow: {
