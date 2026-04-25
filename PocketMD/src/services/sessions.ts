@@ -2,6 +2,14 @@ import RNFS from 'react-native-fs';
 
 const SESSIONS_FILE = `${RNFS.DocumentDirectoryPath}/sessions.json`;
 
+export type StoredMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  imagePath?: string;
+  isTriageResult?: boolean;
+};
+
 export type SessionRecord = {
   id: string;
   startedAt: string;
@@ -9,6 +17,7 @@ export type SessionRecord = {
   regionEmoji: string | null;
   messageCount: number;
   preview: string;
+  messages: StoredMessage[];
 };
 
 export async function loadSessions(): Promise<SessionRecord[]> {

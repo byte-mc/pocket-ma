@@ -160,6 +160,7 @@ export default function HomeScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [pastSessions, setPastSessions] = useState<SessionRecord[]>([]);
+  const [isHistoryView, setIsHistoryView] = useState(false);
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   const [knowledgeRefreshing, setKnowledgeRefreshing] = useState(false);
   const [knowledgeStatus, setKnowledgeStatus] = useState<string | null>(null);
@@ -223,7 +224,7 @@ export default function HomeScreen() {
   }
 
   async function handleNew() {
-    if (messages.length > 0) {
+    if (messages.length > 0 && !isHistoryView) {
       const firstUser = messages.find(m => m.role === 'user');
       await saveSession({
         id: Date.now().toString(),
@@ -232,11 +233,19 @@ export default function HomeScreen() {
         regionEmoji: selectedRegion?.emoji ?? null,
         messageCount: messages.length,
         preview: firstUser?.text.slice(0, 80) ?? '',
+        messages,
       });
     }
     setMessages([]);
     setInput('');
     setImagePath(undefined);
+    setIsHistoryView(false);
+    setShowSessionModal(false);
+  }
+
+  function handleOpenSession(session: SessionRecord) {
+    setMessages(session.messages as any);
+    setIsHistoryView(true);
     setShowSessionModal(false);
   }
 
@@ -415,6 +424,16 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Past session banner */}
+      {isHistoryView && (
+        <View style={styles.historyBanner}>
+          <Text style={styles.historyBannerText}>Past session — read only</Text>
+          <TouchableOpacity onPress={handleNew}>
+            <Text style={styles.historyBannerNew}>＋ New</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Messages */}
       <FlatList
         ref={listRef}
@@ -461,14 +480,14 @@ export default function HomeScreen() {
       {appState === 'thinking' && <ThinkingDots />}
 
       {/* Assess Now button */}
-      {hasMessages && appState === 'ready' && (
+      {hasMessages && appState === 'ready' && !isHistoryView && (
         <TouchableOpacity style={styles.assessButton} onPress={handleAssessNow}>
           <Text style={styles.assessButtonText}>⚡ Assess Now</Text>
         </TouchableOpacity>
       )}
 
       {/* Image preview */}
-      {imagePath && (
+      {!isHistoryView && imagePath && (
         <View style={styles.imagePreviewRow}>
           <Image source={{ uri: `file://${imagePath}` }} style={styles.imagePreview} />
           <TouchableOpacity style={styles.clearImage} onPress={() => setImagePath(undefined)}>
@@ -478,7 +497,7 @@ export default function HomeScreen() {
       )}
 
       {/* Input bar */}
-      <View style={styles.inputBar}>
+      {!isHistoryView && <View style={styles.inputBar}>
         <TouchableOpacity style={styles.iconButton} onPress={handleCamera}>
           <Text style={styles.iconText}>📷</Text>
         </TouchableOpacity>
@@ -505,7 +524,7 @@ export default function HomeScreen() {
           disabled={!canSend}>
           <Text style={styles.sendButtonText}>↑</Text>
         </TouchableOpacity>
-      </View>
+      </View>}
 
       {/* Menu */}
       <Modal visible={showMenu} transparent animationType="fade">
@@ -551,7 +570,7 @@ export default function HomeScreen() {
               <Text style={styles.sessionHistoryEmpty}>No sessions yet.</Text>
             ) : (
               pastSessions.map(s => (
-                <View key={s.id} style={styles.sessionHistoryRow}>
+                <TouchableOpacity key={s.id} style={styles.sessionHistoryRow} onPress={() => handleOpenSession(s)}>
                   <View style={styles.sessionHistoryMeta}>
                     <Text style={styles.sessionHistoryDate}>
                       {s.regionEmoji ? `${s.regionEmoji} ` : ''}
@@ -560,7 +579,8 @@ export default function HomeScreen() {
                     </Text>
                     <Text style={styles.sessionHistoryPreview} numberOfLines={1}>{s.preview}</Text>
                   </View>
-                </View>
+                  <Text style={styles.sessionHistoryChevron}>›</Text>
+                </TouchableOpacity>
               ))
             )}
           </View>
@@ -835,6 +855,15 @@ const styles = StyleSheet.create({
   sessionActiveDot: {
     width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary,
   },
+  sessionHistoryChevron: { fontSize: 20, color: C.textLight },
+
+  // ── History banner ──
+  historyBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.border, paddingHorizontal: 16, paddingVertical: 8,
+  },
+  historyBannerText: { fontSize: 13, color: C.textMid },
+  historyBannerNew: { fontSize: 13, fontWeight: '700', color: C.primary },
 
   // ── Knowledge modal ──
   knowledgeRegionRow: {
