@@ -51,7 +51,15 @@ export type TranslationKey =
   | 'micPermissionMsg'
   | 'voiceError'
   | 'error'
-  | 'visionError';
+  | 'visionError'
+  | 'triageSeverity'
+  | 'triageLikelyCause'
+  | 'triageImmediateAction'
+  | 'triageSeekHelp'
+  | 'sevLow'
+  | 'sevMedium'
+  | 'sevHigh'
+  | 'sevEmergency';
 
 type Translations = Record<TranslationKey, string>;
 
@@ -110,6 +118,14 @@ export const translations: Record<string, Translations> = {
     voiceError: 'Voice error',
     error: 'Error',
     visionError: 'Failed to load vision model: ',
+    triageSeverity: 'Severity',
+    triageLikelyCause: 'Likely cause',
+    triageImmediateAction: 'Immediate action',
+    triageSeekHelp: 'Seek help if',
+    sevLow: 'LOW',
+    sevMedium: 'MEDIUM',
+    sevHigh: 'HIGH',
+    sevEmergency: 'EMERGENCY',
   },
   zh: {
     appSub: 'AI 医疗助手',
@@ -165,5 +181,13 @@ export const translations: Record<string, Translations> = {
     voiceError: '语音错误',
     error: '错误',
     visionError: '无法加载视觉模型：',
+    triageSeverity: '严重程度',
+    triageLikelyCause: '可能原因',
+    triageImmediateAction: '即时处置',
+    triageSeekHelp: '出现以下情况请就医',
+    sevLow: '低',
+    sevMedium: '中',
+    sevHigh: '高',
+    sevEmergency: '紧急',
   },
 };

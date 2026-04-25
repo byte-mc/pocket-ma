@@ -1,4 +1,5 @@
 import { translations, type TranslationKey } from './translations';
+export type { TranslationKey };
 
 // Detected once at app startup — no dynamic switching
 const rawLocale = Intl.DateTimeFormat().resolvedOptions().locale; // e.g. 'zh-CN', 'en-US'
@@ -16,5 +17,6 @@ export function msgCount(n: number, locale = lang): string {
   return `${n} msg${n !== 1 ? 's' : ''}`;
 }
 
-// Voice recognition locale
-export const voiceLocale = lang === 'zh' ? 'zh-CN' : 'en-US';
+// Voice recognition always uses en-US — zh-TW is installed on Pixel 7 but
+// returns Pinyin romanization instead of characters, which is unusable as model input.
+export const voiceLocale = 'en-US';

@@ -23,7 +23,7 @@ import { type Region, REGIONS } from '../data/regionalKnowledge';
 import { type SessionRecord, loadSessions, upsertSession } from '../services/sessions';
 import { initModel, initMultimodal } from '../services/model';
 import { listen, requestMicPermission } from '../services/speech';
-import { t, msgCount, voiceLocale, lang } from '../i18n';
+import { t, msgCount, voiceLocale, lang, type TranslationKey } from '../i18n';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -103,16 +103,28 @@ function severityColor(s: string | null) {
   }
 }
 
+const SEV_KEY: Record<string, TranslationKey> = {
+  Low: 'sevLow', Medium: 'sevMedium', High: 'sevHigh', Emergency: 'sevEmergency',
+};
+
+function localizeTriageBody(body: string): string {
+  return body
+    .replace(/^Severity: (Low|Medium|High|Emergency)/m,
+      (_, sev) => `${t('triageSeverity')}: ${t(SEV_KEY[sev])}`)
+    .replace(/^Likely cause:/m, `${t('triageLikelyCause')}:`)
+    .replace(/^Immediate action:/m, `${t('triageImmediateAction')}:`)
+    .replace(/^Seek help if:/m, `${t('triageSeekHelp')}:`);
+}
+
 function TriageCard({ text }: { text: string }) {
   const severity = parseSeverity(text);
   const color = severityColor(severity);
-  // Remove the "TRIAGE\n" header line before displaying
-  const body = text.replace(/^TRIAGE\s*\n/, '');
+  const body = localizeTriageBody(text.replace(/^TRIAGE\s*\n/, ''));
   return (
     <View style={[styles.triageCard, { borderLeftColor: color }]}>
       {severity && (
         <View style={[styles.severityBadge, { backgroundColor: color }]}>
-          <Text style={styles.severityBadgeText}>{severity.toUpperCase()}</Text>
+          <Text style={styles.severityBadgeText}>{t(SEV_KEY[severity])}</Text>
         </View>
       )}
       <Text style={styles.triageCardText}>{body}</Text>
