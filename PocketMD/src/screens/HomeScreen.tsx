@@ -156,6 +156,7 @@ export default function HomeScreen() {
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [showRegionPicker, setShowRegionPicker] = useState(false);
   const [pickerSource, setPickerSource] = useState<'home' | 'knowledge'>('home');
+  const [showMenu, setShowMenu] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   const [knowledgeRefreshing, setKnowledgeRefreshing] = useState(false);
@@ -391,14 +392,9 @@ export default function HomeScreen() {
             <Text style={styles.headerSub}>AI Medical Assistant</Text>
           </View>
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => { setKnowledgeStatus(null); setShowKnowledgeModal(true); }} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>Knowledge</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowSessionModal(true)} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>Session</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuBtn}>
+          <Text style={styles.menuBtnText}>⋮</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}
@@ -492,6 +488,23 @@ export default function HomeScreen() {
           <Text style={styles.sendButtonText}>↑</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Menu */}
+      <Modal visible={showMenu} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
+          <View style={styles.menuSheet}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowSessionModal(true); }}>
+              <Text style={styles.menuItemIcon}>💬</Text>
+              <Text style={styles.menuItemLabel}>Session</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setKnowledgeStatus(null); setShowKnowledgeModal(true); }}>
+              <Text style={styles.menuItemIcon}>📚</Text>
+              <Text style={styles.menuItemLabel}>Knowledge Base</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Session modal */}
       <Modal visible={showSessionModal} transparent animationType="slide">
@@ -650,14 +663,25 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: C.white, letterSpacing: 0.3 },
   headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
-  headerBtn: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16,
+  menuBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerBtnText: { fontSize: 13, color: C.white, fontWeight: '600' },
+  menuBtnText: { fontSize: 20, color: C.white, lineHeight: 22 },
+  menuSheet: {
+    position: 'absolute', top: 96, right: 16,
+    backgroundColor: C.white, borderRadius: 14,
+    paddingVertical: 6, minWidth: 180,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+  },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
+  menuItemIcon: { fontSize: 18 },
+  menuItemLabel: { fontSize: 15, color: C.textDark, fontWeight: '500' },
+  menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginHorizontal: 16 },
 
   // ── Messages ──
   messageList: { padding: 16, gap: 16, flexGrow: 1 },
