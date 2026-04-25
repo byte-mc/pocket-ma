@@ -20,6 +20,7 @@ import {
   sendMessage,
 } from '../services/assistant';
 import { type Region, REGIONS } from '../data/regionalKnowledge';
+import { type SessionRecord, loadSessions, saveSession } from '../services/sessions';
 import { initModel, initMultimodal } from '../services/model';
 import { listen, requestMicPermission } from '../services/speech';
 
@@ -158,6 +159,7 @@ export default function HomeScreen() {
   const [pickerSource, setPickerSource] = useState<'home' | 'knowledge'>('home');
   const [showMenu, setShowMenu] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
+  const [pastSessions, setPastSessions] = useState<SessionRecord[]>([]);
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   const [knowledgeRefreshing, setKnowledgeRefreshing] = useState(false);
   const [knowledgeStatus, setKnowledgeStatus] = useState<string | null>(null);
@@ -220,11 +222,27 @@ export default function HomeScreen() {
     handleSend('Please assess and provide the triage now.');
   }
 
-  function handleNew() {
+  async function handleNew() {
+    if (messages.length > 0) {
+      const firstUser = messages.find(m => m.role === 'user');
+      await saveSession({
+        id: Date.now().toString(),
+        startedAt: new Date().toISOString(),
+        regionLabel: selectedRegion?.label ?? null,
+        regionEmoji: selectedRegion?.emoji ?? null,
+        messageCount: messages.length,
+        preview: firstUser?.text.slice(0, 80) ?? '',
+      });
+    }
     setMessages([]);
     setInput('');
     setImagePath(undefined);
     setShowSessionModal(false);
+  }
+
+  async function openSessionModal() {
+    setPastSessions(await loadSessions());
+    setShowSessionModal(true);
   }
 
   async function handleRefreshKnowledge() {
@@ -493,7 +511,7 @@ export default function HomeScreen() {
       <Modal visible={showMenu} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
           <View style={styles.menuSheet}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowSessionModal(true); }}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); openSessionModal(); }}>
               <Text style={styles.menuItemIcon}>💬</Text>
               <Text style={styles.menuItemLabel}>Session</Text>
             </TouchableOpacity>
@@ -523,7 +541,22 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <View style={styles.sessionHistorySection}>
               <Text style={styles.sessionHistoryTitle}>Previous sessions</Text>
-              <Text style={styles.sessionHistoryEmpty}>Session history coming soon.</Text>
+              {pastSessions.length === 0 ? (
+                <Text style={styles.sessionHistoryEmpty}>No previous sessions yet.</Text>
+              ) : (
+                pastSessions.map(s => (
+                  <View key={s.id} style={styles.sessionHistoryRow}>
+                    <View style={styles.sessionHistoryMeta}>
+                      <Text style={styles.sessionHistoryDate}>
+                        {s.regionEmoji ? `${s.regionEmoji} ` : ''}
+                        {new Date(s.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {' · '}{s.messageCount} msgs
+                      </Text>
+                      <Text style={styles.sessionHistoryPreview} numberOfLines={1}>{s.preview}</Text>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
           </View>
         </TouchableOpacity>
@@ -793,6 +826,12 @@ const styles = StyleSheet.create({
   sessionHistorySection: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border, paddingTop: 16 },
   sessionHistoryTitle: { fontSize: 13, fontWeight: '600', color: C.textMid, marginBottom: 10 },
   sessionHistoryEmpty: { fontSize: 14, color: C.textLight, textAlign: 'center', paddingVertical: 16 },
+  sessionHistoryRow: {
+    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
+  },
+  sessionHistoryMeta: { gap: 3 },
+  sessionHistoryDate: { fontSize: 12, color: C.textMid, fontWeight: '500' },
+  sessionHistoryPreview: { fontSize: 14, color: C.textDark },
 
   // ── Knowledge modal ──
   knowledgeRegionRow: {
