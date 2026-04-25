@@ -23,6 +23,7 @@ import { type Region, REGIONS } from '../data/regionalKnowledge';
 import { type SessionRecord, loadSessions, upsertSession } from '../services/sessions';
 import { initModel, initMultimodal } from '../services/model';
 import { listen, requestMicPermission } from '../services/speech';
+import { t, msgCount, voiceLocale, lang } from '../i18n';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -129,7 +130,7 @@ function ThinkingDots() {
   return (
     <View style={styles.thinkingRow}>
       <View style={styles.thinkingBubble}>
-        <Text style={styles.thinkingText}>{'Thinking' + '.'.repeat(dot)}</Text>
+        <Text style={styles.thinkingText}>{t('thinkingLabel') + '.'.repeat(dot)}</Text>
       </View>
     </View>
   );
@@ -221,6 +222,7 @@ export default function HomeScreen() {
           messageCount: final.length,
           preview: firstUser?.text.slice(0, 80) ?? '',
           messages: final,
+          locale: lang,
         });
         return final;
       });
@@ -260,28 +262,28 @@ export default function HomeScreen() {
     setKnowledgeRefreshing(true);
     setKnowledgeStatus(null);
     // Simulates a network check — real implementation would fetch updated JSON
-    await new Promise(r => setTimeout(r, 1800));
+    await new Promise<void>(resolve => setTimeout(resolve, 1800));
     setKnowledgeRefreshing(false);
-    setKnowledgeStatus('Knowledge base is up to date.');
+    setKnowledgeStatus(t('upToDate'));
   }
 
   async function handleCamera() {
-    Alert.alert('Add Image', 'Choose source', [
+    Alert.alert(t('addImage'), t('chooseSource'), [
       {
-        text: 'Camera',
+        text: t('camera'),
         onPress: async () => {
           const res = await launchCamera({ mediaType: 'photo', quality: 0.8 });
           if (res.assets?.[0]?.uri) await loadMmProjAndSetImage(res.assets[0].uri);
         },
       },
       {
-        text: 'Gallery',
+        text: t('gallery'),
         onPress: async () => {
           const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
           if (res.assets?.[0]?.uri) await loadMmProjAndSetImage(res.assets[0].uri);
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('cancel'), style: 'cancel' },
     ]);
   }
 
@@ -294,22 +296,22 @@ export default function HomeScreen() {
       setImagePath(path);
     } catch (e) {
       setMmProjProgress(null);
-      Alert.alert('Error', 'Failed to load vision model: ' + String(e));
+      Alert.alert(t('error'), t('visionError') + String(e));
     }
   }
 
   async function handleMic() {
     const granted = await requestMicPermission();
     if (!granted) {
-      Alert.alert('Permission required', 'Microphone access is needed for voice input.');
+      Alert.alert(t('permissionRequired'), t('micPermissionMsg'));
       return;
     }
     setListening(true);
     try {
-      const transcript = await listen('en-US');
+      const transcript = await listen(voiceLocale);
       if (transcript) setInput(transcript);
     } catch (e) {
-      Alert.alert('Voice error', String(e));
+      Alert.alert(t('voiceError'), String(e));
     } finally {
       setListening(false);
     }
@@ -326,11 +328,11 @@ export default function HomeScreen() {
             <BrandIcon size={64} color={C.primary} />
           </View>
           <Text style={styles.loadBrandName}>Pocket MA</Text>
-          <Text style={styles.loadBrandSub}>AI Medical Assistant</Text>
+          <Text style={styles.loadBrandSub}>{t('appSub')}</Text>
         </View>
         <View style={styles.loadCard}>
-          <Text style={styles.loadLabel}>Downloading AI model</Text>
-          <Text style={styles.loadSub}>~3.1 GB · one-time download</Text>
+          <Text style={styles.loadLabel}>{t('downloadingModel')}</Text>
+          <Text style={styles.loadSub}>{t('downloadOnce')}</Text>
           <ProgressBar progress={downloadProgress} />
           <Text style={styles.loadPercent}>{Math.round(downloadProgress * 100)}%</Text>
         </View>
@@ -347,10 +349,10 @@ export default function HomeScreen() {
             <BrandIcon size={64} color={C.primary} />
           </View>
           <Text style={styles.loadBrandName}>Pocket MA</Text>
-          <Text style={styles.loadBrandSub}>AI Medical Assistant</Text>
+          <Text style={styles.loadBrandSub}>{t('appSub')}</Text>
         </View>
         <View style={styles.loadCard}>
-          <Text style={styles.loadLabel}>Loading model into memory…</Text>
+          <Text style={styles.loadLabel}>{t('loadingModel')}</Text>
           <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 16 }} />
         </View>
       </View>
@@ -362,7 +364,7 @@ export default function HomeScreen() {
       <View style={styles.loadScreen}>
         <StatusBar barStyle="light-content" backgroundColor={C.primary} />
         <View style={styles.loadCard}>
-          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorTitle}>{t('somethingWentWrong')}</Text>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       </View>
@@ -418,7 +420,7 @@ export default function HomeScreen() {
           <BrandIcon size={28} color={C.white} />
           <View>
             <Text style={styles.headerTitle}>Pocket MA</Text>
-            <Text style={styles.headerSub}>AI Medical Assistant</Text>
+            <Text style={styles.headerSub}>{t('appSub')}</Text>
           </View>
         </View>
         <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuBtn}>
@@ -429,9 +431,9 @@ export default function HomeScreen() {
       {/* Past session banner */}
       {isHistoryView && (
         <View style={styles.historyBanner}>
-          <Text style={styles.historyBannerText}>Past session — read only</Text>
+          <Text style={styles.historyBannerText}>{t('pastSession')}</Text>
           <TouchableOpacity onPress={handleNew}>
-            <Text style={styles.historyBannerNew}>＋ New</Text>
+            <Text style={styles.historyBannerNew}>{t('newShort')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -445,46 +447,44 @@ export default function HomeScreen() {
         contentContainerStyle={styles.messageList}
         ListEmptyComponent={isHistoryView ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No content</Text>
-            <Text style={styles.emptySub}>This session was saved before message history was stored.</Text>
+            <Text style={styles.emptyTitle}>{t('noContent')}</Text>
+            <Text style={styles.emptySub}>{t('noContentSub')}</Text>
           </View>
         ) : (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconWrap}>
             <BrandIcon size={64} color={C.primary} />
           </View>
-            <Text style={styles.emptyTitle}>What's the situation?</Text>
+            <Text style={styles.emptyTitle}>{t('whatsTheSituation')}</Text>
             <View style={styles.emptyBullets}>
-              <Text style={styles.emptyBullet}>· Describe your symptom by text, voice, or photo.</Text>
-              <Text style={styles.emptyBullet}>· I'll ask a couple of questions, then assess.</Text>
+              <Text style={styles.emptyBullet}>{t('bulletDescribe')}</Text>
+              <Text style={styles.emptyBullet}>{t('bulletQuestions')}</Text>
             </View>
             <TouchableOpacity style={styles.locationBanner} onPress={() => setShowRegionPicker(true)}>
               <Text style={styles.locationBannerEmoji}>{selectedRegion ? selectedRegion.emoji : '📍'}</Text>
               <View style={styles.locationBannerText}>
                 <Text style={styles.locationBannerTitle}>
-                  {selectedRegion ? selectedRegion.label : 'Set your location'}
+                  {selectedRegion ? selectedRegion.label : t('setYourLocation')}
                 </Text>
                 <Text style={styles.locationBannerSub}>
-                  {selectedRegion
-                    ? 'Tap to change region'
-                    : 'For region-specific triage'}
+                  {selectedRegion ? t('tapToChange') : t('forRegionSpecific')}
                 </Text>
               </View>
               <Text style={styles.locationBannerChevron}>›</Text>
             </TouchableOpacity>
             <View style={styles.emptyChips}>
-              {[
-                'Chest pain',
-                'Difficulty breathing',
-                'High fever & chills',
-                'Severe headache',
-                'Rash on skin',
-                'Stomach pain & diarrhea',
-                'Twisted ankle',
-                'Animal bite / wound',
-              ].map(t => (
-                <TouchableOpacity key={t} style={styles.chip} onPress={() => handleSend(t)}>
-                  <Text style={styles.chipText}>{t}</Text>
+              {([
+                'presetChestPain',
+                'presetBreathing',
+                'presetFever',
+                'presetHeadache',
+                'presetRash',
+                'presetStomach',
+                'presetAnkle',
+                'presetBite',
+              ] as const).map(key => (
+                <TouchableOpacity key={key} style={styles.chip} onPress={() => handleSend(t(key))}>
+                  <Text style={styles.chipText}>{t(key)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -498,7 +498,7 @@ export default function HomeScreen() {
       {/* Assess Now button */}
       {hasMessages && appState === 'ready' && !isHistoryView && (
         <TouchableOpacity style={styles.assessButton} onPress={handleAssessNow}>
-          <Text style={styles.assessButtonText}>⚡ Assess Now</Text>
+          <Text style={styles.assessButtonText}>{t('assessNow')}</Text>
         </TouchableOpacity>
       )}
 
@@ -525,7 +525,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TextInput
           style={styles.inputField}
-          placeholder="Describe symptom…"
+          placeholder={t('describeSymptom')}
           placeholderTextColor={C.textLight}
           value={input}
           onChangeText={setInput}
@@ -548,12 +548,12 @@ export default function HomeScreen() {
           <View style={styles.menuSheet}>
             <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); openSessionModal(); }}>
               <Text style={styles.menuItemIcon}>💬</Text>
-              <Text style={styles.menuItemLabel}>Session</Text>
+              <Text style={styles.menuItemLabel}>{t('menuSession')}</Text>
             </TouchableOpacity>
             <View style={styles.menuDivider} />
             <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setKnowledgeStatus(null); setShowKnowledgeModal(true); }}>
               <Text style={styles.menuItemIcon}>📚</Text>
-              <Text style={styles.menuItemLabel}>Knowledge Base</Text>
+              <Text style={styles.menuItemLabel}>{t('menuKnowledge')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -564,16 +564,16 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowSessionModal(false)}>
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHandle} />
-            <Text style={styles.pickerTitle}>Sessions</Text>
+            <Text style={styles.pickerTitle}>{t('sessions')}</Text>
             <TouchableOpacity style={styles.sessionNewBtn} onPress={handleNew}>
-              <Text style={styles.sessionNewBtnText}>＋ New Session</Text>
+              <Text style={styles.sessionNewBtnText}>{t('newSession')}</Text>
             </TouchableOpacity>
             {messages.length > 0 && (
               <View style={[styles.sessionHistoryRow, styles.sessionHistoryRowActive]}>
                 <View style={styles.sessionHistoryMeta}>
                   <Text style={styles.sessionHistoryDate}>
                     {selectedRegion ? `${selectedRegion.emoji} ` : ''}
-                    Now · {messages.length} msg{messages.length !== 1 ? 's' : ''}
+                    {t('now')} · {msgCount(messages.length)}
                   </Text>
                   <Text style={styles.sessionHistoryPreview} numberOfLines={1}>
                     {messages.find(m => m.role === 'user')?.text ?? ''}
@@ -583,7 +583,7 @@ export default function HomeScreen() {
               </View>
             )}
             {pastSessions.length === 0 && messages.length === 0 ? (
-              <Text style={styles.sessionHistoryEmpty}>No sessions yet.</Text>
+              <Text style={styles.sessionHistoryEmpty}>{t('noPastSessions')}</Text>
             ) : (
               pastSessions.map(s => (
                 <TouchableOpacity key={s.id} style={styles.sessionHistoryRow} onPress={() => handleOpenSession(s)}>
@@ -591,7 +591,7 @@ export default function HomeScreen() {
                     <Text style={styles.sessionHistoryDate}>
                       {s.regionEmoji ? `${s.regionEmoji} ` : ''}
                       {new Date(s.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      {' · '}{s.messageCount} msg{s.messageCount !== 1 ? 's' : ''}
+                      {' · '}{msgCount(s.messageCount, s.locale)}
                     </Text>
                     <Text style={styles.sessionHistoryPreview} numberOfLines={1}>{s.preview}</Text>
                   </View>
@@ -608,14 +608,14 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowKnowledgeModal(false)}>
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHandle} />
-            <Text style={styles.pickerTitle}>Knowledge Base</Text>
+            <Text style={styles.pickerTitle}>{t('knowledgeBase')}</Text>
             {selectedRegion ? (
               <>
                 <View style={styles.knowledgeRegionRow}>
                   <Text style={styles.pickerEmoji}>{selectedRegion.emoji}</Text>
                   <Text style={styles.knowledgeRegionLabel}>{selectedRegion.label}</Text>
                   <TouchableOpacity onPress={() => { setShowKnowledgeModal(false); setPickerSource('knowledge'); setShowRegionPicker(true); }}>
-                    <Text style={styles.knowledgeChangeRegion}>Change</Text>
+                    <Text style={styles.knowledgeChangeRegion}>{t('change')}</Text>
                   </TouchableOpacity>
                 </View>
                 {selectedRegion.conditions.map((c, i) => (
@@ -627,7 +627,7 @@ export default function HomeScreen() {
               </>
             ) : (
               <TouchableOpacity style={styles.knowledgeNoRegion} onPress={() => { setShowKnowledgeModal(false); setPickerSource('knowledge'); setShowRegionPicker(true); }}>
-                <Text style={styles.knowledgeNoRegionText}>📍 Set a location to see regional conditions</Text>
+                <Text style={styles.knowledgeNoRegionText}>{t('setLocationPrompt')}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -635,7 +635,7 @@ export default function HomeScreen() {
               onPress={handleRefreshKnowledge}
               disabled={knowledgeRefreshing}>
               <Text style={styles.knowledgeRefreshBtnText}>
-                {knowledgeRefreshing ? 'Checking for updates…' : '↻ Refresh Knowledge Base'}
+                {knowledgeRefreshing ? t('checkingUpdates') : t('refreshKnowledge')}
               </Text>
             </TouchableOpacity>
             {knowledgeStatus && <Text style={styles.knowledgeStatus}>{knowledgeStatus}</Text>}
@@ -648,8 +648,8 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowRegionPicker(false)}>
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHandle} />
-            <Text style={styles.pickerTitle}>Select Your Location</Text>
-            <Text style={styles.pickerSub}>Adjusts probable causes to regional disease patterns</Text>
+            <Text style={styles.pickerTitle}>{t('selectLocation')}</Text>
+            <Text style={styles.pickerSub}>{t('selectLocationSub')}</Text>
             {REGIONS.map(r => (
               <TouchableOpacity
                 key={r.id}
@@ -670,7 +670,7 @@ export default function HomeScreen() {
                 setShowRegionPicker(false);
                 if (pickerSource === 'knowledge') setShowKnowledgeModal(true);
               }}>
-                <Text style={styles.pickerClearText}>Clear location</Text>
+                <Text style={styles.pickerClearText}>{t('clearLocation')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -682,8 +682,8 @@ export default function HomeScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalIcon}>👁️</Text>
-            <Text style={styles.loadLabel}>Loading vision model</Text>
-            <Text style={styles.loadSub}>~985 MB · one-time download</Text>
+            <Text style={styles.loadLabel}>{t('loadingVision')}</Text>
+            <Text style={styles.loadSub}>{t('visionOnce')}</Text>
             <ProgressBar progress={mmProjProgress ?? 0} />
             <Text style={styles.loadPercent}>{Math.round((mmProjProgress ?? 0) * 100)}%</Text>
           </View>

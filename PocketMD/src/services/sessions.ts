@@ -18,6 +18,7 @@ export type SessionRecord = {
   messageCount: number;
   preview: string;
   messages: StoredMessage[];
+  locale?: string;
 };
 
 export async function loadSessions(): Promise<SessionRecord[]> {
