@@ -1,5 +1,6 @@
 import { getContext } from './model';
 import { type Region, getLocationContext } from '../data/regionalKnowledge';
+import { lang } from '../i18n';
 
 const SYSTEM_PROMPT = `You are an offline medical triage assistant.
 Always ask 1-2 follow-up questions before triaging (in 1 or 2 turns). Only skip questions for clear life-threatening emergencies.
@@ -13,7 +14,9 @@ Immediate action:
   2. <step>
 Seek help if: <condition>
 
-Keep questions brief. Always respond in the same language the user used.`;
+Keep questions brief. Always respond in the same language the user used.`
+
+const ZH_TRIAGE_HINT = `\nWhen writing the triage assessment for a Chinese-speaking user: write the Likely cause, Immediate action steps, and Seek help if values in Chinese. Keep the structural keywords (TRIAGE, Severity:, Likely cause:, Immediate action:, Seek help if:) and severity values (Low / Medium / High / Emergency) in English exactly as shown — they are required for parsing.`;
 
 export type AssistantResponse = {
   phase: 'gathering' | 'triage';
@@ -44,9 +47,10 @@ export async function sendMessage(
   const gatheringTurns = history.filter(m => m.role === 'assistant').length;
   const forceTriage = gatheringTurns >= 2;
 
+  const basePrompt = lang === 'zh' ? SYSTEM_PROMPT + ZH_TRIAGE_HINT : SYSTEM_PROMPT;
   const systemContent = region
-    ? `${SYSTEM_PROMPT}\n\n${getLocationContext(region)}`
-    : SYSTEM_PROMPT;
+    ? `${basePrompt}\n\n${getLocationContext(region)}`
+    : basePrompt;
 
   const messages = [
     { role: 'system' as const, content: systemContent },
