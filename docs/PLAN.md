@@ -1,4 +1,4 @@
-# Pocket MD — Project Plan
+# Pocket MA — Project Plan
 
 ## Hackathon
 
@@ -33,7 +33,7 @@
 ## Video Narrative (3 min)
 
 **Act 1 — Personal (45s)**
-Hiker on a trail. Something goes wrong (swollen ankle, allergic reaction, cut). No signal. Opens Pocket MD. Photographs + describes the symptom by voice. Gemma 4 responds instantly with clear guidance. Relief.
+Hiker on a trail. Something goes wrong (swollen ankle, allergic reaction, cut). No signal. Opens Pocket MA. Photographs + describes the symptom by voice. Gemma 4 responds instantly with clear guidance. Relief.
 
 **Act 2 — The World (60s)**
 "But I'm one of the lucky ones."
@@ -50,7 +50,7 @@ Spoken word (voiceover):
 [Screen fades to black]
 
 Title card:
->         Pocket MD
+>         Pocket MA
 > "For everyone, everywhere, every time."
 
 ---
@@ -58,7 +58,7 @@ Title card:
 ## Submission Checklist
 
 ### Required by Kaggle
-- [ ] Kaggle Writeup (max 1,500 words, track selected)
+- [x] Kaggle Writeup (max 1,500 words, track selected) — see docs/WRITEUP.md
 - [ ] YouTube video (max 3 min, publicly viewable)
 - [ ] Public code repository
 - [ ] Live demo link or files
@@ -68,10 +68,16 @@ Title card:
 - [x] Android app scaffold
 - [x] On-device Gemma 4 E2B integration (llama.rn, Q4_K_M GGUF)
 - [x] Triage system prompt with structured output + auto-language detection
+- [x] Multimodal input (image + voice)
+- [x] Conversational multi-turn triage flow (max 2 follow-up questions, Assess Now button)
+- [x] 7x inference speedup (enable_thinking:false + n_predict:150 cap)
+- [x] Location-aware triage — Knowledge-Augmented On-Device Inference (9 regions)
+- [x] Chinese i18n — full UI + triage output in Chinese
+- [x] Session history with delete
+- [x] Polished UI (triage cards, severity colors, thinking indicator, quick-start chips)
+- [x] Custom app icon (adaptive + all densities)
+- [x] Release builds on Pixel 6 + Pixel 7
+- [x] Kaggle writeup drafted (docs/WRITEUP.md)
 - [ ] TODO: swap llama.rn → Cactus once cactus-react-native ≥ 1.12 is on npm
-- [ ] Multimodal input (image + voice)
-- [ ] Model routing (fast first-pass → deep reasoning)
-- [ ] Chinese language output (text + TTS)
-- [ ] Demo video filmed
-- [ ] Kaggle writeup drafted
+- [ ] Demo video filmed (Act 1: hiker → Act 2: rural CHW → Act 3: live demo)
 - [ ] Submission
