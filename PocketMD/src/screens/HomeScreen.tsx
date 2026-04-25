@@ -155,6 +155,10 @@ export default function HomeScreen() {
   const [error, setError] = useState('');
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [showRegionPicker, setShowRegionPicker] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
+  const [knowledgeRefreshing, setKnowledgeRefreshing] = useState(false);
+  const [knowledgeStatus, setKnowledgeStatus] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -218,6 +222,16 @@ export default function HomeScreen() {
     setMessages([]);
     setInput('');
     setImagePath(undefined);
+    setShowSessionModal(false);
+  }
+
+  async function handleRefreshKnowledge() {
+    setKnowledgeRefreshing(true);
+    setKnowledgeStatus(null);
+    // Simulates a network check — real implementation would fetch updated JSON
+    await new Promise(r => setTimeout(r, 1800));
+    setKnowledgeRefreshing(false);
+    setKnowledgeStatus('Knowledge base is up to date.');
   }
 
   async function handleCamera() {
@@ -377,16 +391,12 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => setShowRegionPicker(true)} style={styles.locationPill}>
-            <Text style={styles.locationPillText}>
-              {selectedRegion ? `${selectedRegion.emoji} ${selectedRegion.label.split(',')[0]}` : '🌍 Location'}
-            </Text>
+          <TouchableOpacity onPress={() => { setKnowledgeStatus(null); setShowKnowledgeModal(true); }} style={styles.headerBtn}>
+            <Text style={styles.headerBtnText}>Knowledge</Text>
           </TouchableOpacity>
-          {hasMessages && (
-            <TouchableOpacity onPress={handleNew} style={styles.newButton}>
-              <Text style={styles.newButtonText}>New</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={() => setShowSessionModal(true)} style={styles.headerBtn}>
+            <Text style={styles.headerBtnText}>Session</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -482,6 +492,69 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Session modal */}
+      <Modal visible={showSessionModal} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowSessionModal(false)}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHandle} />
+            <Text style={styles.pickerTitle}>Session</Text>
+            <View style={styles.sessionCurrent}>
+              <Text style={styles.sessionCurrentLabel}>Current session</Text>
+              <Text style={styles.sessionCurrentCount}>
+                {messages.length === 0 ? 'No messages yet' : `${messages.length} message${messages.length !== 1 ? 's' : ''}`}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.sessionNewBtn} onPress={handleNew}>
+              <Text style={styles.sessionNewBtnText}>＋ New Session</Text>
+            </TouchableOpacity>
+            <View style={styles.sessionHistorySection}>
+              <Text style={styles.sessionHistoryTitle}>Previous sessions</Text>
+              <Text style={styles.sessionHistoryEmpty}>Session history coming soon.</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Knowledge modal */}
+      <Modal visible={showKnowledgeModal} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowKnowledgeModal(false)}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHandle} />
+            <Text style={styles.pickerTitle}>Knowledge Base</Text>
+            {selectedRegion ? (
+              <>
+                <View style={styles.knowledgeRegionRow}>
+                  <Text style={styles.pickerEmoji}>{selectedRegion.emoji}</Text>
+                  <Text style={styles.knowledgeRegionLabel}>{selectedRegion.label}</Text>
+                  <TouchableOpacity onPress={() => { setShowKnowledgeModal(false); setShowRegionPicker(true); }}>
+                    <Text style={styles.knowledgeChangeRegion}>Change</Text>
+                  </TouchableOpacity>
+                </View>
+                {selectedRegion.conditions.map((c, i) => (
+                  <View key={i} style={styles.knowledgeConditionRow}>
+                    <Text style={styles.knowledgeConditionDot}>·</Text>
+                    <Text style={styles.knowledgeConditionText}>{c}</Text>
+                  </View>
+                ))}
+              </>
+            ) : (
+              <TouchableOpacity style={styles.knowledgeNoRegion} onPress={() => { setShowKnowledgeModal(false); setShowRegionPicker(true); }}>
+                <Text style={styles.knowledgeNoRegionText}>📍 Set a location to see regional conditions</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.knowledgeRefreshBtn, knowledgeRefreshing && styles.knowledgeRefreshBtnDisabled]}
+              onPress={handleRefreshKnowledge}
+              disabled={knowledgeRefreshing}>
+              <Text style={styles.knowledgeRefreshBtnText}>
+                {knowledgeRefreshing ? 'Checking for updates…' : '↻ Refresh Knowledge Base'}
+              </Text>
+            </TouchableOpacity>
+            {knowledgeStatus && <Text style={styles.knowledgeStatus}>{knowledgeStatus}</Text>}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Region picker */}
       <Modal visible={showRegionPicker} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowRegionPicker(false)}>
@@ -571,17 +644,11 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: C.white, letterSpacing: 0.3 },
   headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
-  locationPill: {
-    paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
-    maxWidth: 130,
+  headerBtn: {
+    paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16,
   },
-  locationPillText: { fontSize: 12, color: C.white, fontWeight: '600' },
-  newButton: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
-  },
-  newButtonText: { fontSize: 14, color: C.white, fontWeight: '600' },
+  headerBtnText: { fontSize: 13, color: C.white, fontWeight: '600' },
 
   // ── Messages ──
   messageList: { padding: 16, gap: 16, flexGrow: 1 },
@@ -678,6 +745,44 @@ const styles = StyleSheet.create({
   pickerCheck: { fontSize: 16, color: C.primary, fontWeight: '700' },
   pickerClear: { marginTop: 12, alignItems: 'center', paddingVertical: 10 },
   pickerClearText: { fontSize: 14, color: '#E74C3C' },
+
+  // ── Session modal ──
+  sessionCurrent: {
+    backgroundColor: C.bg, borderRadius: 12, padding: 14, marginBottom: 12,
+  },
+  sessionCurrentLabel: { fontSize: 12, color: C.textMid, fontWeight: '600', marginBottom: 4 },
+  sessionCurrentCount: { fontSize: 16, color: C.textDark, fontWeight: '500' },
+  sessionNewBtn: {
+    backgroundColor: C.primary, borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center', marginBottom: 20,
+  },
+  sessionNewBtnText: { fontSize: 16, fontWeight: '700', color: C.white },
+  sessionHistorySection: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border, paddingTop: 16 },
+  sessionHistoryTitle: { fontSize: 13, fontWeight: '600', color: C.textMid, marginBottom: 10 },
+  sessionHistoryEmpty: { fontSize: 14, color: C.textLight, textAlign: 'center', paddingVertical: 16 },
+
+  // ── Knowledge modal ──
+  knowledgeRegionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.bg, borderRadius: 12, padding: 12, marginBottom: 12,
+  },
+  knowledgeRegionLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: C.textDark },
+  knowledgeChangeRegion: { fontSize: 13, color: C.primary, fontWeight: '600' },
+  knowledgeConditionRow: { flexDirection: 'row', gap: 8, paddingVertical: 5 },
+  knowledgeConditionDot: { fontSize: 18, color: C.primary, lineHeight: 22 },
+  knowledgeConditionText: { flex: 1, fontSize: 13, color: C.textMid, lineHeight: 20 },
+  knowledgeNoRegion: {
+    backgroundColor: C.bg, borderRadius: 12, padding: 20,
+    alignItems: 'center', marginBottom: 12,
+  },
+  knowledgeNoRegionText: { fontSize: 15, color: C.textMid, textAlign: 'center' },
+  knowledgeRefreshBtn: {
+    marginTop: 16, backgroundColor: C.primary, borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center',
+  },
+  knowledgeRefreshBtnDisabled: { backgroundColor: C.textLight },
+  knowledgeRefreshBtnText: { fontSize: 14, fontWeight: '700', color: C.white },
+  knowledgeStatus: { fontSize: 13, color: C.textMid, textAlign: 'center', marginTop: 10 },
 
   // ── Thinking ──
   thinkingRow: { paddingHorizontal: 16, paddingVertical: 4, flexDirection: 'row' },
