@@ -159,6 +159,28 @@ export const REGIONS: Region[] = [
     ],
   },
   {
+    id: 'southern_china',
+    emoji: '🏮',
+    label: 'Southeast China',
+    labelZh: '中国东南',
+    conditions: [
+      'Dengue fever — mosquito bite (Guangdong/Fujian peak Aug–Nov), high fever + joint pain + rash',
+      'Scrub typhus — mite bite in fields/grassland, eschar + fever + rash',
+      'Hand, foot and mouth disease — young children, oral sores + rash on hands/feet',
+      'Clonorchiasis (liver fluke) — raw freshwater fish, jaundice + upper abdominal pain',
+      'Avian influenza (H5N1/H7N9) — live poultry exposure, fever + severe respiratory illness',
+      'Leptospirosis — flood/paddy field exposure, jaundice + muscle pain + renal failure',
+    ],
+    conditionsZh: [
+      '登革热 — 蚊虫叮咬（粤闽地区8–11月高发），高烧伴剧烈关节痛及皮疹',
+      '恙虫病 — 接触农田/草丛，焦痂伴发热及皮疹',
+      '手足口病 — 幼儿，口腔溃疡伴手足皮疹',
+      '华支睾吸虫病（肝吸虫）— 食用生淡水鱼，黄疸伴右上腹痛',
+      '禽流感（H5N1/H7N9）— 接触活禽，发热伴严重呼吸道症状',
+      '钩端螺旋体病 — 接触洪水/稻田，黄疸伴肌肉痛及肾功能损害',
+    ],
+  },
+  {
     id: 'wilderness',
     emoji: '🏔️',
     label: 'Mountain / Wilderness',
