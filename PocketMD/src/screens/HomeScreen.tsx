@@ -454,10 +454,10 @@ export default function HomeScreen() {
             <BrandIcon size={64} color={C.primary} />
           </View>
             <Text style={styles.emptyTitle}>What's the situation?</Text>
-            <Text style={styles.emptySub}>
-              Describe your symptom by text, voice, or photo.{'\n'}
-              I'll ask a couple of questions, then assess.
-            </Text>
+            <View style={styles.emptyBullets}>
+              <Text style={styles.emptyBullet}>· Describe your symptom by text, voice, or photo.</Text>
+              <Text style={styles.emptyBullet}>· I'll ask a couple of questions, then assess.</Text>
+            </View>
             <TouchableOpacity style={styles.locationBanner} onPress={() => setShowRegionPicker(true)}>
               <Text style={styles.locationBannerEmoji}>{selectedRegion ? selectedRegion.emoji : '📍'}</Text>
               <View style={styles.locationBannerText}>
@@ -795,6 +795,8 @@ const styles = StyleSheet.create({
   emptyIconWrap: { marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: C.textDark, marginBottom: 10 },
   emptySub: { fontSize: 15, color: C.textMid, textAlign: 'center', lineHeight: 22 },
+  emptyBullets: { alignSelf: 'stretch', marginTop: 10, paddingHorizontal: 8, gap: 6 },
+  emptyBullet: { fontSize: 15, color: C.textMid, lineHeight: 22, textAlign: 'left' },
   emptyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24, justifyContent: 'center' },
   chip: {
     paddingHorizontal: 14, paddingVertical: 8,
