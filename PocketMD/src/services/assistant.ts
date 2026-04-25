@@ -16,7 +16,15 @@ Seek help if: <condition>
 
 Keep questions brief. Always respond in the same language the user used.`
 
-const ZH_TRIAGE_HINT = `\nWhen writing the triage assessment for a Chinese-speaking user: write the Likely cause, Immediate action steps, and Seek help if values in Chinese. Keep the structural keywords (TRIAGE, Severity:, Likely cause:, Immediate action:, Seek help if:) and severity values (Low / Medium / High / Emergency) in English exactly as shown — they are required for parsing.`;
+const ZH_TRIAGE_HINT = `\nWhen the user speaks Chinese, fill the triage values in Chinese exactly like this example:
+TRIAGE
+Severity: Low
+Likely cause: 踝关节韧带扭伤
+Immediate action:
+  1. 用冰袋冷敷肿胀处，每次15–20分钟
+  2. 抬高患肢，减轻肿胀
+Seek help if: 疼痛剧烈、肿胀迅速加重或完全无法负重
+Keep TRIAGE, Severity:, Likely cause:, Immediate action:, Seek help if:, and the severity word (Low/Medium/High/Emergency) in English — only the values change to Chinese.`;
 
 export type AssistantResponse = {
   phase: 'gathering' | 'triage';
