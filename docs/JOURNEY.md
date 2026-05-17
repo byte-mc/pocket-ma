@@ -339,12 +339,153 @@ Same Gemma 4 model. Same device. Same inference pipeline. Entirely different cli
 
 ## Open threads (as of 2026-04-24)
 
-- [ ] Test location-aware triage on device — verify different outputs for same symptom across regions
-- [ ] Test image + voice input end-to-end on device
-- [ ] Verify Chinese language output (text + TTS)
+- [x] Test location-aware triage on device — verified different outputs for same symptom across regions
+- [x] Test image + voice input end-to-end on device
+- [x] Verify Chinese language output (text + TTS)
 - [ ] Cactus SDK watch: check if cactus-react-native ≥ 1.12 is on npm
-- [ ] Knowledge base expansion — more regions, seasonal variants, outbreak annotations
-- [ ] Background knowledge sync — silent update of knowledge file when connectivity available
-- [ ] Demo video — "same symptom, two locations, different assessment" as the centrepiece
-- [ ] Kaggle writeup (max 1,500 words)
-- [ ] Submission by May 18, 2026
+- [x] Knowledge base expansion — Southeast China region added
+- [ ] Background knowledge sync — future work
+- [x] Demo video — filmed and produced
+- [x] Kaggle writeup (1,431 words)
+- [x] Submission by May 18, 2026
+
+---
+
+## 2026-04-25 — Chinese i18n
+
+### Full bilingual UI
+
+Implemented Chinese internationalization without a third-party i18n library. Architecture:
+
+- `src/i18n/translations.ts` — flat key-value translation objects for `en` and `zh`
+- `src/i18n/index.ts` — locale detection via `Intl.DateTimeFormat().resolvedOptions().locale`, exports `t()`, `msgCount()`, `lang`, `voiceLocale`
+- All hardcoded strings in `HomeScreen.tsx` replaced with `t()` calls
+- `msgCount()` handles Chinese pluralization (no plural forms: "X 条消息")
+
+### Triage output localization — two-layer approach
+
+The model reliably outputs structural English keywords (TRIAGE, Severity, Likely cause, Immediate action, Seek help if) for parser compatibility. Two mechanisms handle Chinese content:
+
+1. **`ZH_TRIAGE_HINT`** — a concrete filled example appended to the system prompt when `lang === 'zh'`. Instructs the model to fill triage *values* in Chinese while keeping structural keywords in English. Abstract instructions ("respond in Chinese") failed; a concrete example worked reliably.
+
+2. **`localizeTriageBody()`** — client-side label replacement. Maps English structural labels to Chinese display labels after the model response is received. Keeps the parser independent of display language.
+
+### Voice locale
+
+`zh-TW` ASR on Pixel 7 returns Pinyin romanization instead of Chinese characters — unusable for triage input. Fixed by hardcoding `voiceLocale = 'en-US'`. Users type in Chinese; voice input falls back to English.
+
+---
+
+## 2026-04-25 — Voice Input Fixes
+
+### Android SpeechRecognizer error codes
+
+Three errors encountered during testing:
+
+- **Error 12 (LANGUAGE_NOT_SUPPORTED)** — zh-CN SODA offline pack not installed on test device
+- **Error 13 (LANGUAGE_UNAVAILABLE)** — zh-TW pack listed but unavailable at runtime
+- **Error 11 (SERVER_DISCONNECTED)** — caused by immediate retry inside `onError` callback (SpeechRecognizer crashes if restarted synchronously)
+
+### Fix: `startListeningInternal()` with delayed retry
+
+Refactored `SpeechModule.kt` to use `Handler(Looper.getMainLooper()).postDelayed(200ms)` for language fallback retries. The 200ms delay avoids the synchronous restart crash. Language errors (12, 13) retry with `en-US`; other errors reject the promise immediately.
+
+---
+
+## 2026-04-26 — Session Delete + App Icon
+
+### Session delete
+
+Added `deleteSession(id)` to `sessions.ts` using filter-and-rewrite pattern on the JSON sessions file. Added a 🗑 button per session row in the history list with an `Alert.alert` confirmation before deletion.
+
+### App icon replacement
+
+Replaced the default React Native icon and the custom `BrandIcon` text component with a real PNG app icon. Generated all required densities using Python/Pillow from a 1024×1024 transparent PNG master:
+
+- `mipmap-mdpi` through `mipmap-xxxhdpi` — `ic_launcher.png` + `ic_launcher_round.png` (teal background composited in Python)
+- `mipmap-anydpi-v26` — adaptive icon XML pointing to `@color/ic_launcher_background` + `@drawable/ic_launcher_foreground`
+- `drawable-*/ic_launcher_foreground.png` — transparent PNG on 108dp canvas with 72dp safe-zone artwork
+
+Key lesson: adaptive icon foreground must be a separate drawable — cannot reference `@mipmap/ic_launcher` as its own foreground (circular reference). Old icon persisted after reinstall until `adb uninstall com.pocketmd` cleared the launcher cache.
+
+---
+
+## 2026-05-01 — Southeast China Region + Knowledge Base Localization
+
+### Southeast China region
+
+Added 🏮 Southeast China to the knowledge base with 6 high-yield conditions specific to Guangdong/Fujian:
+- Dengue fever (Aug–Nov peak season callout)
+- Scrub typhus (field/grassland exposure)
+- Hand, foot and mouth disease (young children)
+- Clonorchiasis / liver fluke (raw freshwater fish)
+- Avian influenza H5N1/H7N9 (live poultry contact)
+- Leptospirosis (flood/paddy field exposure)
+
+### Knowledge base localization
+
+Added `labelZh` and `conditionsZh` fields to the `Region` type. All 9 regions now have full Chinese translations. Added `regionLabel(region, lang)` and `regionConditions(region, lang)` helper functions. Region picker and knowledge modal display in the user's language.
+
+---
+
+## 2026-05-12 — Release Builds + Submission Prep
+
+### Release builds
+
+Built signed release APKs for both Pixel 6 and Pixel 7 using `./gradlew assembleRelease`. Release builds bundle the JS inline — app runs without Metro or USB connection. Tested triage flow end-to-end on both devices in airplane mode.
+
+### Rename: Pocket MD → Pocket MA
+
+"MD" could imply a medical degree. Renamed to "Pocket MA" (Medical Assistant) across all layers: `package.json`, `strings.xml`, `MainActivity.kt`, app icons.
+
+---
+
+## 2026-05-15 — Demo Video Production
+
+### Assets gathered
+
+- 5 hiking clips (Live Photos exported as .mov) — California trails, various terrain
+- 3 village photos — personal photos from childhood home in rural China and neighboring villages
+- 3 screen recordings on Pixel 7 (airplane mode ON throughout):
+  - Wilderness/English scenario: ankle swelling + puncture mark, Mountain/Wilderness region
+  - Image input: ankle photo uploaded via camera, California region
+  - Chinese scenario: same symptom typed in Chinese, Southeast China region selected
+
+### Video structure
+
+3-minute narrative in 4 acts:
+
+1. **The Hiker (45s)** — personal trail footage, "anything can happen" + ankle swelling setup
+2. **The World (55s)** — childhood village photos, "1.8 billion people don't have a hospital 30 minutes away"
+3. **The Demo (60s)** — airplane mode proof, full triage flow, image input, Chinese UI
+4. **Close (25s)** — village photo fade to black, "For Everyone, Everywhere, Every Time."
+
+Assembled in iMovie. hiking4 played at 25% speed (captured at 150fps) for the slow-motion wildflower shot. Cross Dissolve transitions between village photos; hard cuts within the app demo.
+
+### Key editing decisions
+
+- Village photos personal to the developer (childhood home in remote rural China) — more emotionally authentic than stock footage
+- App demo kept at natural speed for model response and triage card reveal; only typing sections sped up 4x
+- Act 1 → Act 2 transition: Fade to Black (chapter break between "the problem" and "the solution")
+- Title overlay on hiking1 opening shot (iMovie Fade title, white on trail footage)
+
+---
+
+## 2026-05-17 — Kaggle Submission
+
+### Submission package
+
+- **Writeup** — 1,431 words covering architecture, challenges, performance, and impact. Tracks: Main, Impact (Health & Sciences), Special Technology (llama.cpp).
+- **Video** — uploaded to YouTube, public, under 3 minutes.
+- **Code repository** — `github.com/byte-mc/pocket-ma`, public.
+- **Live demo** — GitHub Release v1.0.0 with signed release APK (129 MB).
+- **Media Gallery** — 6 curated screenshots + cover image (`triage-english-itchy.png`) + card thumbnail (560×280, generated with Python/Pillow).
+
+### Writeup challenges section
+
+Three engineering challenges called out explicitly for judges:
+1. Gemma 4 thinking tokens: 38s → 5–9s via `enable_thinking: false`
+2. No maintained RN voice library: wrote custom Kotlin `SpeechRecognizer` module
+3. Cactus SDK incompatibility: switched to `llama.rn` on day one
+
+**Submitted May 17, 2026 — one day before the May 18 deadline.**

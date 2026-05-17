@@ -1,97 +1,119 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Pocket MA — Offline AI Medical Assistant
 
-# Getting Started
+An offline-first medical triage assistant powered by Gemma 4 E2B running entirely on-device. No internet required — works in the wilderness, in remote villages, anywhere.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+Built for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon) — Health & Sciences track.
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Demo
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+[YouTube Demo Video](https://youtube.com) <!-- replace with actual URL -->
 
-```sh
-# Using npm
-npm start
+---
 
-# OR using Yarn
-yarn start
+## Features
+
+- **Fully offline** — Gemma 4 E2B Q4_K_M (~3.1 GB) runs entirely on-device after first download. Works in airplane mode indefinitely.
+- **Knowledge-Augmented On-Device Inference** — 9 regional disease profiles injected into the system prompt at runtime. Same model, different knowledge, different clinical focus.
+- **Conversational triage** — up to 2 follow-up questions before a structured assessment (Severity / Likely cause / Immediate action / Seek help if).
+- **Multimodal input** — text, voice, and photo.
+- **Bilingual** — full UI and triage output in English and Chinese. Generalizable to any language Gemma 4 supports.
+- **Session history** — conversations persist across app restarts with delete support.
+
+---
+
+## Architecture
+
+```
+Layer 1 — Reasoning engine (immutable, on-device)
+  Gemma 4 E2B Q4_K_M, ~3.1 GB
+  Runs fully offline. Never needs to change.
+
+Layer 2 — Knowledge base (lightweight, updatable)
+  src/data/regionalKnowledge.ts — 9 regions
+  Updated via normal app release. No model retraining required.
 ```
 
-## Step 2: Build and run your app
+Regional knowledge is injected into the system prompt at inference time (~50 tokens, <1s prefill overhead). A WHO epidemiologist can update disease profiles without any ML infrastructure.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+---
 
-### Android
+## Tech Stack
+
+| Layer | Choice |
+|---|---|
+| UI | React Native (bare CLI) |
+| ML runtime | llama.rn (llama.cpp React Native bindings) |
+| Model | Gemma 4 E2B, Q4_K_M quantized (~3.1 GB) |
+| Voice input | Custom Kotlin native module wrapping Android SpeechRecognizer (offline) |
+| Voice output | Android TTS (offline, multi-language) |
+| Target devices | Pixel 6 / Pixel 7 (Android, 8 GB RAM) |
+
+---
+
+## Performance
+
+| Device | Gathering turn | Triage turn | Decode speed |
+|---|---|---|---|
+| Pixel 6 (Tensor G1) | 2–5s | 6–8s | ~12 t/s |
+| Pixel 7 (Tensor G2) | 1.6–4s | 7–9s | ~11 t/s |
+
+Key optimisation: `enable_thinking: false` + `n_predict: 150` cap → **7x speedup** (38s → 5–9s per turn).
+
+---
+
+## Regional Knowledge Base
+
+9 regions implemented:
+
+| Region | Key conditions |
+|---|---|
+| California, USA | Valley fever, Lyme disease, rattlesnake, hantavirus, wildfire smoke |
+| US Southeast | Rocky Mountain spotted fever, ehrlichiosis, copperhead, fire ant anaphylaxis |
+| Southeast Asia | Dengue, scrub typhus, melioidosis, leptospirosis, malaria |
+| Sub-Saharan Africa | Malaria, typhoid, cholera, schistosomiasis, meningococcal meningitis |
+| South Asia | Dengue, chikungunya, typhoid, kala-azar, Japanese encephalitis |
+| Latin America | Dengue, Zika, Chagas disease, yellow fever, leishmaniasis |
+| Middle East & North Africa | Heat stroke, MERS-CoV, leishmaniasis, brucellosis, scorpion |
+| Southeast China | Dengue (Aug–Nov peak), scrub typhus, HFMD, avian influenza, leptospirosis |
+| Mountain / Wilderness | AMS, HAPE, hypothermia, frostbite, giardia, lightning strike |
+
+---
+
+## Build
+
+### Prerequisites
+
+- Android Studio (with JDK 17+)
+- Android SDK platform tools
+- Yarn
+- A physical Android device with 8 GB RAM (Pixel 6 or later recommended)
+
+### Dev build
 
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
+yarn install
 yarn android
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### Release build
 
 ```sh
-bundle install
+cd android
+./gradlew assembleRelease
+# APK at: app/build/outputs/apk/release/app-release.apk
 ```
 
-Then, and every time you update your native dependencies, run:
+### First launch
 
-```sh
-bundle exec pod install
-```
+On first launch the app downloads Gemma 4 E2B Q4_K_M (~3.1 GB). Requires WiFi. All subsequent inference runs fully offline.
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+---
 
-```sh
-# Using npm
-npm run ios
+## Project Docs
 
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- [`docs/JOURNEY.md`](../docs/JOURNEY.md) — chronological development log (proof of work)
+- [`docs/PLAN.md`](../docs/PLAN.md) — hackathon plan and submission checklist
+- [`docs/WRITEUP.md`](../docs/WRITEUP.md) — Kaggle submission writeup
+- [`docs/VIDEO_SCRIPT.md`](../docs/VIDEO_SCRIPT.md) — demo video voiceover script

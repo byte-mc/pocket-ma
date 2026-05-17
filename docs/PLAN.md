@@ -79,5 +79,5 @@ Title card:
 - [x] Release builds on Pixel 6 + Pixel 7
 - [x] Kaggle writeup drafted (docs/WRITEUP.md)
 - [ ] TODO: swap llama.rn → Cactus once cactus-react-native ≥ 1.12 is on npm
-- [ ] Demo video filmed (Act 1: hiker → Act 2: rural CHW → Act 3: live demo)
-- [ ] Submission
+- [x] Demo video filmed and produced (Act 1: hiker → Act 2: rural CHW → Act 3: live demo)
+- [x] Submission — May 17, 2026
