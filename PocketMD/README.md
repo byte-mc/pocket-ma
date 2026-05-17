@@ -10,7 +10,11 @@ Submission for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/
 
 ## Demo
 
-[YouTube Demo Video](https://youtube.com) <!-- replace with actual URL -->
+[YouTube Demo Video](https://youtu.be/sC3FywXJ8ws)
+
+[Kaggle Writeup](https://www.kaggle.com/competitions/gemma-4-good-hackathon/writeups/pocket-ma)
+
+[Live Demo APK](https://github.com/byte-mc/pocket-ma/releases/tag/v1.0.0) — Android 8.0+, tested on Pixel 6 and Pixel 7. Gemma 4 model (~3.1 GB) downloads on first launch.
 
 ---
 
