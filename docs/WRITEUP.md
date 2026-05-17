@@ -1,6 +1,4 @@
-# Pocket MA — Kaggle Writeup
-
-**Gemma 4 Good Hackathon | Health & Sciences Track**
+# Pocket MA: Gemma 4 Good Hackathon
 
 **Submission by:** Makeable Club | makeable.club@gmail.com
 
