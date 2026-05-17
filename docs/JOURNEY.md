@@ -26,10 +26,10 @@ The goal: run Gemma 4 entirely on-device. No cloud call, no API key, no data pla
 
 Set up `README.md` (project identity) and `docs/PLAN.md` (video narrative, prize targets, build checklist) separately from the start. Hackathon URL added to README for reference.
 
-Prize analysis: Pocket MD is eligible for three independent prize pools:
-- Health & Sciences Impact Track ($10K)
-- Cactus Special Technology Track ($10K) — "best local-first mobile or wearable application that intelligently routes tasks between models"
+Prize analysis: the project is eligible for three independent prize pools:
 - Main Track (up to $50K)
+- Health & Sciences Impact Track ($10K)
+- Special Technology Track ($10K) — initially targeting Cactus ("best local-first mobile app"), later switched to llama.cpp ("innovative Gemma 4 on resource-constrained hardware") after the Cactus SDK blocker
 
 ---
 
@@ -263,8 +263,6 @@ During testing, two model behaviour issues surfaced:
 
 ---
 
----
-
 ## 2026-04-24 — Location-Aware Triage: Knowledge-Augmented On-Device Inference
 
 ### The insight
@@ -436,7 +434,7 @@ Built signed release APKs for both Pixel 6 and Pixel 7 using `./gradlew assemble
 
 ### Rename: Pocket MD → Pocket MA
 
-"MD" could imply a medical degree. Renamed to "Pocket MA" (Medical Assistant) across all layers: `package.json`, `strings.xml`, `MainActivity.kt`, app icons.
+"MD" implies a medical degree and a licensed doctor. This app plays an assistant role — triaging symptoms and providing guidance at urgent moments when no alternative is available. It is not a doctor and does not intend to act as one. Renamed to "Pocket MA" (Medical Assistant) across all layers: `package.json`, `strings.xml`, `MainActivity.kt`, app icons.
 
 ---
 
@@ -444,7 +442,7 @@ Built signed release APKs for both Pixel 6 and Pixel 7 using `./gradlew assemble
 
 ### Assets gathered
 
-- 5 hiking clips (Live Photos exported as .mov) — California trails, various terrain
+- 5 hiking clips (Live Photos exported as .mov) — personal hiking footage on California trails across various terrain
 - 3 village photos — personal photos from childhood home in rural China and neighboring villages
 - 3 screen recordings on Pixel 7 (airplane mode ON throughout):
   - Wilderness/English scenario: ankle swelling + puncture mark, Mountain/Wilderness region
@@ -453,19 +451,19 @@ Built signed release APKs for both Pixel 6 and Pixel 7 using `./gradlew assemble
 
 ### Video structure
 
-3-minute narrative in 4 acts:
+~2:50 narrative in 4 acts, under the 3-minute limit:
 
-1. **The Hiker (45s)** — personal trail footage, "anything can happen" + ankle swelling setup
-2. **The World (55s)** — childhood village photos, "1.8 billion people don't have a hospital 30 minutes away"
-3. **The Demo (60s)** — airplane mode proof, full triage flow, image input, Chinese UI
-4. **Close (25s)** — village photo fade to black, "For Everyone, Everywhere, Every Time."
+1. **The Hiker** — personal trail footage, "anything can happen" + ankle swelling setup
+2. **The World** — childhood village photos, "1.8 billion people don't have a hospital 30 minutes away"
+3. **The Demo** — airplane mode proof, full triage flow, image input, Chinese UI
+4. **Close** — village photo fade to black, "For Everyone, Everywhere, Every Time."
 
 Assembled in iMovie. hiking4 played at 25% speed (captured at 150fps) for the slow-motion wildflower shot. Cross Dissolve transitions between village photos; hard cuts within the app demo.
 
 ### Key editing decisions
 
 - Village photos personal to the developer (childhood home in remote rural China) — more emotionally authentic than stock footage
-- App demo kept at natural speed for model response and triage card reveal; only typing sections sped up 4x
+- App demo kept at natural speed for model response and triage card reveal; typing sections sped up ~20x (slow natural typing pace)
 - Act 1 → Act 2 transition: Fade to Black (chapter break between "the problem" and "the solution")
 - Title overlay on hiking1 opening shot (iMovie Fade title, white on trail footage)
 
