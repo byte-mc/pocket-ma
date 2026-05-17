@@ -1,8 +1,10 @@
-# Pocket MA — Offline AI Medical Assistant
+# Pocket MA
 
-An offline-first medical triage assistant powered by Gemma 4 E2B running entirely on-device. No internet required — works in the wilderness, in remote villages, anywhere.
+### A medical assistant in every pocket. For everyone, everywhere, every time.
 
-Built for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon) — Health & Sciences track.
+On-device AI medical assistant powered by Gemma 4 — instant guidance for anyone, anywhere, even without internet.
+
+Submission for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon) · Main Track · Impact Track (Health & Sciences) · Special Technology Track (llama.cpp)
 
 ---
 
